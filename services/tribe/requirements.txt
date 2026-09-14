@@ -1,0 +1,14 @@
+# Direct dependency constraints. The GPU stack still requires a host smoke test;
+# archive pip freeze after that test for the deployment's complete transitive lock.
+numpy==2.2.6
+Pillow==11.3.0
+psycopg[binary]==3.2.10
+pytest==8.4.2
+torch==2.6.0
+torchvision==0.21.0
+transformers==4.57.1
+huggingface-hub==0.35.3
+nilearn==0.12.1
+nibabel==5.3.2
+uv==0.9.5
+tribev2 @ git+https://github.com/facebookresearch/tribev2.git@af58661791a351a448a489042a28f6c37e1c14b7

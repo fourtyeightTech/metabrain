@@ -1,0 +1,12 @@
+node_modules
+.next
+.env
+.env.local
+.git
+.venv
+dist
+artifacts
+data
+**/__pycache__
+*.zip
+*.log

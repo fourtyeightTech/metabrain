@@ -1,0 +1,63 @@
+# Agent handoff: deploy Tray from metabrain
+
+## Intended result
+
+Deploy the Next.js project in `fourtyeightTech/metabrain` to Vercel, then connect it to the operator's separately selected Pons token. Preserve the scientific labels and paper-only behavior. Never reuse another project's token address, user identity, email, wallet or credentials.
+
+This repository is a source handoff. Repository publication does not establish a website deployment, a connection to a live token or a completed TRIBE inference run. Do not report those steps complete until you perform and verify them.
+
+## Phase 1: publish the working demo
+
+1. Clone `https://github.com/fourtyeightTech/metabrain.git` and use the checkout root as the application root.
+2. Read `README.md`, `docs/DESIGN.md`, `docs/SCIENCE.md`, `docs/VERIFICATION.md` and `THIRD_PARTY_NOTICES.md`.
+3. Use Node 22.12 or later. Run `npm ci`, `npm run typecheck`, `npm test`, and `npm run build`.
+4. Run `npm run verify:browser` on a supported Linux host. The command starts temporary production servers itself. Screenshots and its JSON report go to `artifacts/browser/`, which is excluded from commits.
+5. Continue work in this repository. Preserve any subsequent operator changes. Use privacy-preserving commit metadata and keep personal contact information out of public files. Commit source files, `.env.example` and the lockfile. Do not commit actual `.env`, artifacts, models, logs, `node_modules`, `.next` or `.venv`.
+6. Import `fourtyeightTech/metabrain` into Vercel as Next.js. Root directory is `.`; build command `npm run build`; install `npm ci`. Set `TRAY_MODE=demo` explicitly. No RPC/database/model environment is needed yet.
+7. Open the production URL on desktop and mobile. Verify synthetic mode labels, hero viewer tabs, camera controls, chart, policy selector, event receipt, export and science page. Confirm the schematic is not described as model output and reduced-motion preferences stop automatic camera rotation.
+
+## Phase 2: connect the new token
+
+Obtain the following factual deployment inputs from the operator or the protocol's verified deployment records. Do not infer a network from an EVM address alone.
+
+| Required fact | Purpose |
+| --- | --- |
+| Chain ID and RPC URLs | Correct chain; HTTP must support logs and historical contract reads |
+| Token contract and launch/start block | Select only this new project and limit backfill |
+| Protocol generation | Choose `pons-v2` or an explicitly identified `uniswap-v3` pool |
+| Pons V2 factory, hook and PoolManager | Discover curve metadata and calculate the exact V4 pool ID |
+| Actual quote asset/symbol | Keep valuation units accurate; do not substitute USD |
+| Database connections | Pooled read connection for Vercel; direct writer connection for persistent services |
+
+Create a fresh Postgres database. Apply `npm run db:migrate`. Configure the indexer environment, leave `PAPER_POLICY=observer` and `INFERENCE_ENABLED=false`, then run `npm run doctor`. Launch the indexer as a persistent service. Confirm its cursor advances and a genuine token swap matches the transaction receipt, including direction, raw amounts and decimals. Check graduation coverage against the verified contracts if the token uses Pons V2.
+
+Set only `TRAY_MODE=live` and `DATABASE_READ_URL` in Vercel, then redeploy. No RPC URL or HF token belongs in Vercel for this architecture. Confirm feed status, token metadata and event receipts agree with the worker. Simulate an RPC interruption and confirm stale/degraded status rather than demo fallback.
+
+## Phase 3: enable the scientific model
+
+1. Establish the rights basis for the intended use of TRIBE and its dependency models. Keep supporting documentation private. `TRIBE_RIGHTS_REFERENCE` is a private operator record, not a legal grant from the application.
+2. Select immutable revisions for the TRIBE checkpoint, Llama 3.2 3B, V-JEPA 2 and w2v-BERT 2.0. Retain the audited upstream code pin already provided. Obtain gated model access as required.
+3. Follow `docs/DEPLOYMENT.md` to build the GPU image and prepare model volumes. Run `smoke.py` against synthetic test inputs. The smoke command never publishes into the live database.
+4. Inspect the generated video, narration transcript, full prediction NPZ, model provenance and fsaverage5 dimensions. Benchmark preprocessing plus inference after warm-up. Archive the exact installed package versions and image digest privately.
+5. Start the GPU worker with the same writer database. Enable `INFERENCE_ENABLED=true` on the indexer and restart it. Verify queued → running → complete, and ensure a real prediction arrives with matching block hash and stimulus receipt.
+6. Confirm the public API returns the exact prediction produced by the worker, the mesh has 20,484 vertices in the expected order, and the website labels delays correctly. Confirm secrets and private filesystem paths are absent from public output.
+7. Keep the paper policy as observer until this path passes. Enabling `cortical` changes the paper configuration fingerprint and requires a fresh database/account under this version. Do not delete an existing database as a shortcut; create another and retain the previous record.
+
+## Acceptance criteria
+
+- Default website builds and renders with no credentials.
+- A failed live backend returns an error; it never synthesizes on-chain events or neural predictions.
+- Every market event can be traced to chain ID, transaction hash, log index and block hash.
+- Every neural result has an actual model revision, exact media hash, output hash and publication timestamp.
+- An orphaned source block causes its jobs/results to be invalidated and its paper state to be rolled back.
+- Model-derived paper decisions reference an existing fresh prediction and occur after its publication time.
+- The system never signs or submits a transaction.
+- Product copy explains predicted cortical responses and makes no claims of consciousness, emotion detection, profitability or Meta endorsement.
+
+## Do not silently change
+
+Keep the supplied AgentMail-inspired visual direction: monochrome split hero, prominent interactive cortex, fine borders, Inter with Geist Mono, factual research labels and the dashboard below. The reference is a visual direction, not an affiliation. Do not add AgentMail's branding, customer logos, funding claims or testimonials. Camera rotation is presentation motion, not a prediction changing.
+
+Do not fill missing predictions with animated random values. Do not relabel the momentum baseline as TRIBE trading. Do not change the upstream model's noncausal architecture to imply streaming validity. Do not adjust stale-result limits just to make the live indicator appear healthy. Do not add user identity fields, wallet ranking, speculative buyer psychology, token taxes, treasury orders or automated promotion without a separate task.
+
+The most important remaining deployment uncertainties are actual protocol/network configuration, the licensed GPU environment and measured inference latency. Resolve them with evidence and update `docs/VERIFICATION.md` after deployment.

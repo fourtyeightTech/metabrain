@@ -1,0 +1,7 @@
+#!/usr/bin/env python3
+"""Pin the upstream helper's WhisperX command without changing Meta source."""
+import os
+import sys
+if len(sys.argv) < 2 or sys.argv[1] != "whisperx":
+    raise SystemExit("This adapter accepts only the upstream whisperx invocation")
+os.execvp("uv", ["uv", "tool", "run", "--from", "whisperx==3.3.4", "whisperx", *sys.argv[2:]])

@@ -1,0 +1,11 @@
+FROM node:22-bookworm-slim
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY tsconfig.json ./
+COPY src/lib ./src/lib
+COPY services/indexer.ts ./services/indexer.ts
+COPY scripts ./scripts
+COPY db ./db
+USER node
+CMD ["npm", "run", "worker"]

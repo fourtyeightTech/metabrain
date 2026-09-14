@@ -1,0 +1,31 @@
+name: Verify Tray
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  web-and-engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+        env:
+          TRAY_MODE: demo
+          NEXT_TELEMETRY_DISABLED: '1'
+  stimulus-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r services/tribe/requirements-test.txt
+      - run: python -m pytest services/tribe/tests -q
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg espeak-ng fonts-dejavu-core
+      - run: python services/tribe/smoke.py --render-only --out /tmp/tray-render

@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: tray
+      POSTGRES_USER: tray
+      POSTGRES_PASSWORD: ${LOCAL_POSTGRES_PASSWORD:?Set a local development database password}
+    ports: ["127.0.0.1:5432:5432"]
+    volumes: ["tray-postgres:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tray -d tray"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  indexer:
+    profiles: ["market"]
+    build:
+      context: .
+      dockerfile: services/Dockerfile.indexer
+    env_file: .env
+    restart: unless-stopped
+  tribe:
+    profiles: ["gpu"]
+    build:
+      context: .
+      dockerfile: services/tribe/Dockerfile
+    env_file: .env
+    gpus: all
+    volumes: ["tray-models:/models", "tray-cache:/cache", "tray-artifacts:/data/tray"]
+    restart: unless-stopped
+volumes:
+  tray-postgres:
+  tray-models:
+  tray-cache:
+  tray-artifacts:
