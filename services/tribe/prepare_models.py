@@ -26,7 +26,7 @@ def main():
         features[key] = {"repository": repo, "revision": rev, "path": path}
     provenance = {"tribeRevision": revision, "checkpointHash": sha256(root / "best.ckpt"),
                   "configHash": sha256(root / "config.yaml"), "features": features}
-    (root / "tray-model-provenance.json").write_text(json.dumps(provenance, indent=2))
+    (root / "metatray-model-provenance.json").write_text(json.dumps(provenance, indent=2))
     print("Authorized model snapshots prepared. Run the inference smoke test before live use.")
 
 

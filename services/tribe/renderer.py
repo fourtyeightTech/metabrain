@@ -1,4 +1,4 @@
-"""Original Tray stimulus renderer. No model output is fabricated here."""
+"""Original MetaTray stimulus renderer. No model output is fabricated here."""
 from __future__ import annotations
 import hashlib
 import json
@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-VERSION = "tray-market-screen-v1"
+VERSION = "metatray-market-screen-v1"
 
 
 def sha256(path: Path) -> str:
@@ -54,7 +54,7 @@ def frame(data: dict, seconds: float, size=(640, 360)) -> Image.Image:
     draw = ImageDraw.Draw(image)
     at = data["start"] + seconds * 1000
     visible = [t for t in data["ticks"] if t["ts"] <= at]
-    draw.text((26, 20), "TRAY / MARKET EXPERIENCE", font=font(15), fill="#70dfbc")
+    draw.text((26, 20), "METATRAY / MARKET EXPERIENCE", font=font(15), fill="#70dfbc")
     draw.text((26, 46), "Constructed replay - paper account", font=font(12), fill="#a3acb4")
     if not visible:
         draw.text((26, 115), "Awaiting first observed trade", font=font(22), fill="#e6edf2")

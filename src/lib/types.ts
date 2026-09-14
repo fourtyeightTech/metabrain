@@ -32,6 +32,10 @@ export interface PredictionResult extends PredictionSummary {
   segmentOffsets: number[]; colorLimit: number;
   manifest: Record<string, unknown>;
 }
+export interface CorticalEpoch extends PredictionSummary {
+  tradeCount: number; observedVolume: number; priceChangePct: number | null;
+  regime: 'quiet' | 'active' | 'rally' | 'selloff';
+}
 export interface Snapshot {
   mode: Mode; symbol: string; quoteSymbol: string; now: number;
   connected: boolean; stale: boolean; message: string; chainId: number | null;
@@ -40,6 +44,14 @@ export interface Snapshot {
   prediction: PredictionSummary | null; inferenceEnabled: boolean;
   inferenceStatus: string; jobs: { queued: number; running: number; failed: number };
   stimulus: { text: string; inputEnd: number | null };
+  epochs?: CorticalEpoch[];
+  feed?: FeedStatus;
+}
+export interface FeedStatus {
+  source: 'rpc' | 'indexed' | 'demo'; phase: 'setup' | 'live' | 'waiting' | 'stale' | 'error';
+  checkedAt: number | null; chainHead: number | null; fromBlock: number | null; toBlock: number | null;
+  blockTimestamp: number | null; pollMs: number; missing: string[]; invalid: string[];
+  explorer: string | null; truncated: boolean;
 }
 export interface MeshData { vertices: number[]; faces: number[]; hemisphereBoundary: number; mesh: 'fsaverage5'; }
 

@@ -4,13 +4,13 @@ import { discoverMarket, makeClient } from '../src/lib/server/chain';
 import { pool } from '../src/lib/server/db';
 import type { PublicClient } from 'viem';
 
-if (process.env.TRAY_MODE !== 'live') {
+if (process.env.METATRAY_MODE === 'demo') {
   console.log('Demo mode: no RPC, database or GPU is required. Build with npm run build.');
 } else {
   try {
     const cfg = liveConfig(); paperConfig();
     const db = pool();
-    await db.query("SELECT version FROM tray_migrations WHERE version='001'");
+    await db.query("SELECT version FROM metatray_migrations WHERE version='001'");
     const client = makeClient(cfg) as PublicClient;
     const market = await discoverMarket(client, cfg);
     const head = await client.getBlockNumber();

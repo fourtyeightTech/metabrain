@@ -24,12 +24,12 @@ def connection():
 def claim(db):
     with db.transaction():
         # Leases are renewed while inference runs; interrupted jobs can retry twice.
-        db.execute("UPDATE tray_jobs SET status=CASE WHEN attempts<3 THEN 'queued' ELSE 'failed' END, lease_id=NULL, error='Lease expired' WHERE status='running' AND locked_at<now()-interval '90 seconds'")
-        job = db.execute("SELECT * FROM tray_jobs WHERE status='queued' ORDER BY input_end DESC LIMIT 1 FOR UPDATE SKIP LOCKED").fetchone()
+        db.execute("UPDATE metatray_jobs SET status=CASE WHEN attempts<3 THEN 'queued' ELSE 'failed' END, lease_id=NULL, error='Lease expired' WHERE status='running' AND locked_at<now()-interval '90 seconds'")
+        job = db.execute("SELECT * FROM metatray_jobs WHERE status='queued' ORDER BY input_end DESC LIMIT 1 FOR UPDATE SKIP LOCKED").fetchone()
         if not job:
             return None
         lease = uuid.uuid4()
-        db.execute("UPDATE tray_jobs SET status='running',attempts=attempts+1,locked_at=now(),lease_id=%s,error=NULL WHERE id=%s", (lease, job["id"]))
+        db.execute("UPDATE metatray_jobs SET status='running',attempts=attempts+1,locked_at=now(),lease_id=%s,error=NULL WHERE id=%s", (lease, job["id"]))
         return {**job, "lease_id": lease}
 
 
@@ -37,7 +37,7 @@ def heartbeat(job, finished):
     while not finished.wait(20):
         try:
             with connection() as db:
-                db.execute("UPDATE tray_jobs SET locked_at=now() WHERE id=%s AND lease_id=%s AND status='running'", (job["id"], job["lease_id"]))
+                db.execute("UPDATE metatray_jobs SET locked_at=now() WHERE id=%s AND lease_id=%s AND status='running'", (job["id"], job["lease_id"]))
         except psycopg.Error:
             # Publication verifies the lease again. A disconnected worker cannot publish stale ownership.
             continue
@@ -46,21 +46,21 @@ def heartbeat(job, finished):
 def publish(db, job, result):
     with db.transaction():
         # Lock the job first so reorg cancellation and publication serialize.
-        current = db.execute("SELECT status,lease_id FROM tray_jobs WHERE id=%s FOR UPDATE", (job["id"],)).fetchone()
+        current = db.execute("SELECT status,lease_id FROM metatray_jobs WHERE id=%s FOR UPDATE", (job["id"],)).fetchone()
         if not current or current["status"] != "running" or current["lease_id"] != job["lease_id"]:
             return False
-        source = db.execute("SELECT hash FROM tray_blocks WHERE number=%s", (job["source_block"],)).fetchone()
+        source = db.execute("SELECT hash FROM metatray_blocks WHERE number=%s", (job["source_block"],)).fetchone()
         if not source or source["hash"] != job["input"]["sourceBlockHash"]:
-            db.execute("UPDATE tray_jobs SET status='cancelled',lease_id=NULL,error='Orphaned input' WHERE id=%s", (job["id"],))
+            db.execute("UPDATE metatray_jobs SET status='cancelled',lease_id=NULL,error='Orphaned input' WHERE id=%s", (job["id"],))
             return False
         result["availableAt"] = int(time.time() * 1000)
         public_result = result
         summary_keys = ["id", "source", "inputStart", "inputEnd", "availableAt", "modelRevision", "stimulusHash", "outputHash",
                         "meanAbsoluteResponse", "responseChange", "sampleCount", "vertexCount", "latencyMs", "alignment", "runMode"]
         summary = {key: public_result[key] for key in summary_keys}
-        db.execute("INSERT INTO tray_predictions(id,input_end,available_at,summary,result) VALUES(%s,%s,%s,%s,%s)",
+        db.execute("INSERT INTO metatray_predictions(id,input_end,available_at,summary,result) VALUES(%s,%s,%s,%s,%s)",
                    (job["id"], job["input_end"], public_result["availableAt"], Jsonb(summary), Jsonb(public_result)))
-        db.execute("UPDATE tray_jobs SET status='complete',lease_id=NULL WHERE id=%s", (job["id"],))
+        db.execute("UPDATE metatray_jobs SET status='complete',lease_id=NULL WHERE id=%s", (job["id"],))
         return True
 
 
@@ -69,8 +69,8 @@ def main():
         signal.signal(event, lambda *_: STOP.set())
     adapter = Adapter()
     with connection() as db:
-        db.execute("INSERT INTO tray_assets(key,data) VALUES('fsaverage5',%s) ON CONFLICT(key) DO UPDATE SET data=EXCLUDED.data", (Jsonb(adapter.mesh),))
-    root = Path(os.getenv("TRIBE_ARTIFACT_PATH", "/data/tray"))
+        db.execute("INSERT INTO metatray_assets(key,data) VALUES('fsaverage5',%s) ON CONFLICT(key) DO UPDATE SET data=EXCLUDED.data", (Jsonb(adapter.mesh),))
+    root = Path(os.getenv("TRIBE_ARTIFACT_PATH", "/data/metatray"))
     while not STOP.is_set():
         with connection() as db:
             job = claim(db)
@@ -98,7 +98,7 @@ def main():
             # Private diagnostic details are never returned by the website.
             (out / "error.txt").write_text(f"{type(exc).__name__}: {exc}")
             with connection() as db:
-                db.execute("UPDATE tray_jobs SET status='failed',lease_id=NULL,error=%s WHERE id=%s AND lease_id=%s AND status='running'",
+                db.execute("UPDATE metatray_jobs SET status='failed',lease_id=NULL,error=%s WHERE id=%s AND lease_id=%s AND status='running'",
                            (f"{type(exc).__name__}; inspect private artifact log", job["id"], job["lease_id"]))
             print(json.dumps({"job": str(job["id"]), "failed": type(exc).__name__}), flush=True)
         finally:

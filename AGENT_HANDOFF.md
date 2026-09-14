@@ -1,4 +1,4 @@
-# Agent handoff: deploy Tray from metabrain
+# Agent handoff: deploy MetaTray from metabrain
 
 ## Intended result
 
@@ -6,17 +6,17 @@ Deploy the Next.js project in `fourtyeightTech/metabrain` to Vercel, then connec
 
 This repository is a source handoff. Repository publication does not establish a website deployment, a connection to a live token or a completed TRIBE inference run. Do not report those steps complete until you perform and verify them.
 
-The current revision renames the product to Tray and adds dedicated explanatory and legal pages. Publication of this source was authorized after the source handoff. Do not report this revision as runtime-tested based on results from an earlier commit. Check the current commit’s CI and deployment results. Review `docs/LEGAL_REVIEW.md` before adopting the terms for a public deployment.
+The current revision renames the product to MetaTray and adds dedicated explanatory and legal pages. Publication of this source was authorized after the source handoff. Do not report this revision as runtime-tested based on results from an earlier commit. Check the current commit’s CI and deployment results. Review `docs/LEGAL_REVIEW.md` before adopting the terms for a public deployment.
 
-## Phase 1: publish the working demo
+## Phase 1: publish and connect the live observer
 
 1. Clone `https://github.com/fourtyeightTech/metabrain.git` and use the checkout root as the application root.
 2. Read `README.md`, `docs/DESIGN.md`, `docs/SCIENCE.md`, `docs/VERIFICATION.md` and `THIRD_PARTY_NOTICES.md`.
 3. Use Node 22.12 or later. Run `npm ci`, `npm run typecheck`, `npm test`, and `npm run build`.
 4. Run `npm run verify:browser` on a supported Linux host. The command starts temporary production servers itself. Screenshots and its JSON report go to `artifacts/browser/`, which is excluded from commits.
 5. Continue work in this repository. Preserve any subsequent operator changes. Use privacy-preserving commit metadata and keep personal contact information out of public files. Commit source files, `.env.example` and the lockfile. Do not commit actual `.env`, artifacts, models, logs, `node_modules`, `.next` or `.venv`.
-6. Import `fourtyeightTech/metabrain` into Vercel as Next.js. Root directory is `.`; build command `npm run build`; install `npm ci`. Set `TRAY_MODE=demo` explicitly. No RPC/database/model environment is needed yet.
-7. Open the production URL on desktop and mobile. Verify synthetic mode labels, hero viewer tabs, camera controls, chart, policy selector, event receipt, export and all six informational routes. Confirm the schematic is not described as model output and reduced-motion preferences stop automatic camera rotation. Set a suitable public contact URL and make the privacy/terms text match the actual operator and hosting arrangements.
+6. Import the latest `main` of `fourtyeightTech/metabrain` into Vercel as one Next.js project at root `.`; build command `npm run build`; install `npm ci`. The committed `vercel.json` deliberately contains no Vercel `services` block or service rewrite. Do not add the Python GPU worker as a Vercel service. Restart an older import if it still proposes `tribe`. Set `METATRAY_MODE=live`, `METATRAY_FEED=rpc`, `RPC_HTTP_URL`, `CHAIN_ID`, `TOKEN_ADDRESS`, `MARKET_PROTOCOL` and the verified factory or V3 pool. Remove unused blank environment rows. This live observer needs no database/model environment. See `docs/DEPLOYMENT.md` for the import settings.
+7. Open the production URL on desktop and mobile. Verify actual decoded swaps, block/hash receipts, polling age, missing-setting/outage behavior, hero viewer tabs, input pulses, camera controls, chart, both receipt formats, the cortical chronicle and all eight informational routes. Confirm the schematic is not described as model output and reduced-motion preferences stop automatic camera rotation. Set a suitable public contact URL and make the privacy/terms text match the actual operator and hosting arrangements.
 
 ## Phase 2: connect the new token
 
@@ -33,7 +33,7 @@ Obtain the following factual deployment inputs from the operator or the protocol
 
 Create a fresh Postgres database. Apply `npm run db:migrate`. Configure the indexer environment, leave `PAPER_POLICY=observer` and `INFERENCE_ENABLED=false`, then run `npm run doctor`. Launch the indexer as a persistent service. Confirm its cursor advances and a genuine token swap matches the transaction receipt, including direction, raw amounts and decimals. Check graduation coverage against the verified contracts if the token uses Pons V2.
 
-Set only `TRAY_MODE=live` and `DATABASE_READ_URL` in Vercel, then redeploy. No RPC URL or HF token belongs in Vercel for this architecture. Confirm feed status, token metadata and event receipts agree with the worker. Simulate an RPC interruption and confirm stale/degraded status rather than demo fallback.
+Set `METATRAY_MODE=live`, `METATRAY_FEED=indexed` and `DATABASE_READ_URL` in Vercel, then redeploy. In this indexed mode the website does not need RPC credentials. HF credentials belong only on the GPU host. Confirm feed status, token metadata and event receipts agree with the worker. Simulate an RPC interruption and confirm stale/degraded status rather than demo fallback.
 
 ## Phase 3: enable the scientific model
 
@@ -58,7 +58,7 @@ Set only `TRAY_MODE=live` and `DATABASE_READ_URL` in Vercel, then redeploy. No R
 
 ## Do not silently change
 
-Keep Tray’s visual identity: monochrome split hero, prominent interactive cortex, fine borders, Inter with Geist Mono, factual research labels and the dashboard below. Use Tray branding and factual attribution to the research software. Do not imply endorsement by a research provider. Camera rotation is presentation motion, not a prediction changing.
+Keep MetaTray’s visual identity: monochrome split hero, prominent interactive cortex, fine borders, Inter with Geist Mono, factual research labels and the dashboard below. Use MetaTray branding and factual attribution to the research software. Do not imply endorsement by a research provider. Camera rotation is presentation motion. Input pulses are authored reactions to actual swaps, not predictions. Returned Meta values are the only source of cortical output colors.
 
 Do not fill missing predictions with animated random values. Do not relabel the momentum baseline as TRIBE trading. Do not change the upstream model's noncausal architecture to imply streaming validity. Do not adjust stale-result limits just to make the live indicator appear healthy. Do not add user identity fields, wallet ranking, speculative buyer psychology, token taxes, treasury orders or automated promotion without a separate task.
 

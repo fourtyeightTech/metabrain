@@ -5,6 +5,8 @@
 ```mermaid
 flowchart TD
   Chain["Chain RPC"] --> Indexer["Persistent Node indexer"]
+  Chain --> Observer["Read-only recent RPC observer"]
+  Observer --> Web
   Indexer --> DB["Postgres: events, jobs, paper state"]
   DB --> GPU["Python GPU worker"]
   GPU --> DB
@@ -12,7 +14,7 @@ flowchart TD
   DB --> Web["Vercel read APIs and dashboard"]
 ```
 
-The public application polls a snapshot every two seconds while its tab is visible and the view is not paused. A WebSocket, when configured, wakes the indexer on new blocks; HTTP polling and log catch-up remain the source of recoverable event history. Browser polling never queries a private RPC directly.
+The public application polls server snapshots every five seconds in direct RPC mode or every two seconds in indexed mode while its tab is visible and the view is not paused. `METATRAY_FEED=rpc` selects bounded recent observation without Postgres; `METATRAY_FEED=indexed` selects persistent history and model results. Missing configuration produces a structured setup snapshot with empty real-event data; synthetic replay requires `METATRAY_MODE=demo`. A WebSocket, when configured, wakes the indexer on new blocks; HTTP polling and log catch-up remain the source of recoverable event history. Browser polling never queries a private RPC directly.
 
 ## Repository map
 
@@ -21,6 +23,11 @@ The public application polls a snapshot every two seconds while its tab is visib
 | `src/app/` | Next.js layout, routes, styles, error/not-found views |
 | `src/components/dashboard.tsx` | Market/account UI, policy controls, receipts, science and deployment pages |
 | `src/components/cortex.tsx` | Three.js schematic or actual fsaverage5 prediction rendering |
+| `src/components/feed-console.tsx` | Connection age, chain window, decoded swap receipts, pipeline stages and repository evidence links |
+| `src/components/cortical-atlas.tsx` | Completed-result history paired with summary statistics from each immutable job input |
+| `src/lib/server/rpc-observer.ts` | Read-only confirmed recent window, factory discovery, canonical block checks, bounded requests and short cache |
+| `src/lib/server/live-feed.ts` | Feed selection and sanitized setup/error snapshots |
+| `src/lib/sources.ts` | MetaTray and immutable Meta code references; public explorer link validation |
 | `src/components/chart.tsx` | Price chart and descriptive response trace |
 | `src/lib/paper.ts` | Pure paper-account accounting and authored policy |
 | `src/lib/demo.ts` | Deterministic synthetic replay, entirely separate from model output |

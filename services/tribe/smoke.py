@@ -11,7 +11,7 @@ def fixture():
     start = 1700000000000
     ticks = [{"id": f"synthetic-{i}", "ts": start + i * 2000, "price": .01 * math.exp(.002 * i),
               "side": "buy" if i % 3 else "sell", "blockNumber": i + 1} for i in range(50)]
-    return {"schemaVersion": 1, "rendererVersion": "tray-market-screen-v1", "start": start, "end": start + 100000,
+    return {"schemaVersion": 1, "rendererVersion": "metatray-market-screen-v1", "start": start, "end": start + 100000,
             "sourceBlock": 50, "sourceBlockHash": "synthetic-smoke-only", "quoteSymbol": "DEMO", "ticks": ticks,
             "paper": {"cash": 10000, "units": 0}, "text": "This is a synthetic test market. The price has risen during this recorded interval. The paper account holds ten thousand units of cash and no tokens.",
             "portfolioTiming": "cutoff snapshot in a constructed replay", "temporalMode": "rolling-window-experimental"}
@@ -20,7 +20,7 @@ def fixture():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--render-only", action="store_true")
-    parser.add_argument("--out", default="/data/tray/smoke")
+    parser.add_argument("--out", default="/data/metatray/smoke")
     args = parser.parse_args(); out = Path(args.out).resolve()
     rendered = render(fixture(), out)
     if args.render_only:

@@ -5,18 +5,58 @@
 | Mode | Website | Persistent services | Model permission/access |
 | --- | --- | --- | --- |
 | Demo | Vercel alone | None | None; no model runs |
-| Live observer | Vercel | Postgres + Node indexer | None; no model runs |
+| Live RPC observer | Vercel + configured RPC | None | None; no model runs |
+| Indexed observer | Vercel | Postgres + Node indexer | None; no model runs |
 | Live cortical experiment | Vercel | Postgres + indexer + GPU worker + durable model/artifact volumes | Required for intended use and all selected models |
 
-The website is ready to build in demo mode. The live paths are implemented but require operator configuration and the acceptance tests below. The GPU Docker image and real model invocation have not been executed in this handoff environment.
+The website builds without credentials and shows live setup instructions until configured. Synthetic mode requires an explicit `METATRAY_MODE=demo`. The live paths are implemented but require operator configuration and the acceptance tests below. The GPU Docker image and real model invocation have not been executed in this handoff environment.
 
-## 1. Vercel demo
+## 1. Vercel live RPC feed
 
-Import the new repository into Vercel with the framework preset **Next.js**. Use the directory containing `package.json` as the root. `vercel.json` supplies `npm ci`, `npm run build` and a 15-second read-API duration limit. Use a supported Node version at least 22.12.
+Import the repository's latest `main` revision into Vercel as one ordinary Next.js project. The committed `vercel.json` sets the Next.js framework, install command, build command and a 30-second read-API duration limit at the repository root. It contains no `services` block and no rewrites: Next.js owns the pages, assets and `/api/*` route handlers directly.
 
-Set `TRAY_MODE=demo`. Deploy. No database or RPC variables are needed. There is no production model download in the web build. Do not set secrets with a `NEXT_PUBLIC_` prefix.
+| Import setting | Value |
+| --- | --- |
+| Project name | `metatray`, or another available project name |
+| Git branch | `main` |
+| Project root directory | `.` (repository root) |
+| Framework preset | **Next.js** |
+| Install command | `npm ci` (provided by config) |
+| Build command | `npm run build` (provided by config) |
+| Output directory | Leave the framework default |
+| Node version | Supported version at least 22.12 |
+| Environment | Live RPC variables below, Production and Preview |
 
-The website includes `/about`, `/science`, `/how-it-works`, `/deployment`, `/terms` and `/privacy`. Set `TRAY_PUBLIC_CONTACT_URL` to an HTTPS page offering an appropriate private contact route, and rebuild after changing it. This value is intended to be public; it must not contain credentials. Review `docs/LEGAL_REVIEW.md` and adapt the terms/privacy pages to the actual deployment before adopting them.
+If the import screen shows `tribe` / Python or asks for a multi-service `vercel.json`, do not accept that generated setup. Select **Next.js**, set Root Directory to `.`, and use the committed configuration. There is no `frontend/` directory and no `/api/tribe` web endpoint. `services/tribe` is a persistent GPU queue consumer, not an HTTP application; Next.js reads completed results from Postgres.
+
+Vercel may prefill many names from `.env.example`. Remove unused blank rows. Add the following server environment variables for the direct RPC observer, then redeploy:
+
+| Variable | Value |
+| --- | --- |
+| `METATRAY_MODE` | `live` (also the application default) |
+| `METATRAY_FEED` | `rpc` |
+| `RPC_HTTP_URL` | Private HTTP RPC endpoint for the selected chain; must allow chain ID, bytecode, contract reads, blocks and event logs |
+| `CHAIN_ID` | Actual numeric EVM chain ID |
+| `TOKEN_ADDRESS` | This new project's token contract |
+| `MARKET_PROTOCOL` | `pons-v2` |
+| `PONS_FACTORY_ADDRESS` | Verified factory that created this token, on this chain |
+| `BLOCK_EXPLORER_URL` | Optional public HTTPS explorer base URL, with no credentials, query or fragment |
+
+For a compatible V3 pool, select `MARKET_PROTOCOL=uniswap-v3` and set `V3_POOL_ADDRESS` instead of the Pons factory. In Pons V2 mode the observer reads the hook and pool manager from the factory and validates deployed bytecode. It follows curve events and the derived V4 pool through graduation. It never reuses another project's token. Verify deployment addresses against the [official Pons contracts](https://github.com/ponsdotdev/ponsfamily).
+
+The browser polls every five seconds, with a short server cache and two confirmation blocks by default. Change `CONFIRMATION_BLOCKS` only with the chain's finality behavior in mind. `RPC_RECENT_BLOCKS` defaults to 60 (maximum 200), and `RPC_MAX_EVENTS` to 100 (maximum 200). This is a bounded recent view, not a complete history. Busy windows display a truncation notice. Curves use the execution ratio from event amounts; V3/V4 use post-swap spot prices. Quote values are not assumed to be USD.
+
+Check `/api/health` and `/api/snapshot`. A healthy quiet market returns an empty real-event list with `waiting` status. Missing settings return HTTP 503 with their names, never secret values. Wrong-chain, mismatched-contract, reorg-during-read and unavailable-provider failures return a disconnected state. Old confirmed blocks are stale. No live error falls back to synthetic events. Match a displayed event's hash, block, direction, raw amounts and decimals to a transaction receipt on the configured chain.
+
+The 3D surface renders without the GPU worker. Fresh real events trigger authored teal buy/amber sell input pulses, explicitly labelled as market inputs. Actual Meta model colors are a separate display path. Direct RPC mode does not run model jobs or persistent paper decisions; its observer account holds simulated cash. For the full experiment, continue with sections 2–4 and set `METATRAY_FEED=indexed` plus `DATABASE_READ_URL` on Vercel. The persistent worker still requires its full configuration.
+
+Completed indexed predictions populate the cortical atlas automatically. Each card uses the job's retained market input to show trade count, quote volume, price change and a descriptive market regime. Selecting a card loads that exact result through `/api/predictions/[id]`. The visual receipt button exports a 1200 × 630 PNG containing the current canvas and public provenance fields; the data receipt retains the complete JSON. A copied result link includes only the prediction UUID and resolves through the public read API.
+
+This configuration follows Vercel's ordinary [project configuration](https://vercel.com/docs/project-configuration/vercel-json) and [Next.js Functions](https://vercel.com/docs/functions/functions-api-reference) paths. Vercel Services mode is intentionally not used.
+
+For an optional synthetic preview only, set `METATRAY_MODE=demo`; that mode needs no database or RPC variables. There is no production model download in the web build. Do not set secrets with a `NEXT_PUBLIC_` prefix.
+
+The website includes `/about`, `/science`, `/how-it-works`, `/deployment`, `/evidence`, `/terms` and `/privacy`. Set `METATRAY_PUBLIC_CONTACT_URL` to an HTTPS page offering an appropriate private contact route, and rebuild after changing it. This value is intended to be public; it must not contain credentials. Review `docs/LEGAL_REVIEW.md` and adapt the terms/privacy pages to the actual deployment before adopting them.
 
 Local equivalent:
 
@@ -51,14 +91,14 @@ The migration is idempotent. It creates tables only; it does not clear existing 
 Example read-only role setup, run by a database administrator in an interactive `psql` session:
 
 ```sql
-CREATE ROLE tray_web LOGIN;
-\password tray_web
-GRANT CONNECT ON DATABASE tray TO tray_web;
-GRANT USAGE ON SCHEMA public TO tray_web;
-GRANT SELECT ON tray_state, tray_events, tray_jobs, tray_predictions, tray_assets TO tray_web;
+CREATE ROLE metatray_web LOGIN;
+\password metatray_web
+GRANT CONNECT ON DATABASE metatray TO metatray_web;
+GRANT USAGE ON SCHEMA public TO metatray_web;
+GRANT SELECT ON metatray_state, metatray_events, metatray_jobs, metatray_predictions, metatray_assets TO metatray_web;
 ```
 
-Replace `tray` with the actual database name if different. Set the password interactively; do not put it in a public script. The deployment provider can also create a read-only role. Only the worker/migration role needs writes. Supply the resulting private read connection to Vercel as `DATABASE_READ_URL`.
+Replace `metatray` with the actual database name if different. Set the password interactively; do not put it in a public script. The deployment provider can also create a read-only role. Only the worker/migration role needs writes. Supply the resulting private read connection to Vercel as `DATABASE_READ_URL`.
 
 For local development, `compose.yaml` provides a Postgres service. Set a private `LOCAL_POSTGRES_PASSWORD` in `.env` and run `docker compose up -d postgres`. The port is bound to loopback. Use a loopback database connection for host commands; a container uses the service hostname `postgres` instead. Copy a valid connection string into the respective host/container environment and URL-encode any password characters that require it. Do not expose local Postgres to the internet.
 
@@ -66,7 +106,8 @@ For local development, `compose.yaml` provides a Postgres service. Set a private
 
 | Variable | Meaning / default |
 | --- | --- |
-| `TRAY_MODE` | Set `live` for live website/doctor behavior |
+| `METATRAY_MODE` | Set `live` for live website/doctor behavior |
+| `METATRAY_FEED` | Set `indexed` on the website when reading the persistent pipeline |
 | `DATABASE_URL` | Direct writer connection for persistent services |
 | `RPC_HTTP_URL` | Private HTTP endpoint; requires logs, bytecode, chain ID and historic contract calls |
 | `RPC_WS_URL` | Optional WebSocket endpoint; HTTP polling still recovers missed blocks |
@@ -78,7 +119,7 @@ For local development, `compose.yaml` provides a Postgres service. Set a private
 | `PONS_HOOK_ADDRESS` | Hook used in this launch's V4 pool key |
 | `V4_POOL_MANAGER_ADDRESS` | Correct deployed V4 PoolManager |
 | `V3_POOL_ADDRESS` | Used only for explicit V3 mode |
-| `TRAY_TOKEN_SYMBOL`, `TRAY_QUOTE_SYMBOL` | Public display labels; configure the actual quote unit |
+| `METATRAY_TOKEN_SYMBOL`, `METATRAY_QUOTE_SYMBOL` | Public display labels; configure the actual quote unit |
 | `CONFIRMATION_BLOCKS` | 2 by default, configurable 0–128; not an absolute finality guarantee |
 | `RPC_BLOCK_BATCH` | At most 30 blocks per catch-up cycle by default; lower for constrained providers |
 | `REORG_HISTORY_BLOCKS` | 128 rollback checkpoints by default |
@@ -98,7 +139,7 @@ Watch private logs and database health. `doctor` checks configuration, database 
 
 ## 4. Turn on the live website
 
-In Vercel, set `TRAY_MODE=live` and `DATABASE_READ_URL`, then redeploy. The website reads the token symbol, chain and confirmation settings from the running indexer's database. It does not require the RPC URL, writer connection, HF token or model permission record.
+In Vercel, set `METATRAY_MODE=live`, `METATRAY_FEED=indexed` and `DATABASE_READ_URL`, then redeploy. This explicitly switches away from the recent RPC observer. The website reads the token symbol, chain and confirmation settings from the running indexer's database. It does not require the RPC URL, writer connection, HF token or model permission record.
 
 Before proceeding, observe at least one genuine swap and compare its transaction hash, log index, raw amounts, direction and normalized price basis with the chain receipt. Confirm the cursor advances through blocks with no trades, and the frontend reports failure when the worker is stopped.
 
@@ -137,7 +178,7 @@ Required private model settings:
 | `HF_TOKEN` | Private model-read token with any required gated access |
 | `TRIBE_MODEL_PATH` | `/models/tribev2` on a durable volume |
 | `TRIBE_CACHE_PATH` | `/cache/tribev2` on a durable volume |
-| `TRIBE_ARTIFACT_PATH` | `/data/tray` on a durable volume |
+| `TRIBE_ARTIFACT_PATH` | `/data/metatray` on a durable volume |
 | `TRIBE_DEVICE` | `cuda` |
 
 Resolve revisions from the official model repositories after reviewing their cards. Do not set them to `main`; the preparation script requires immutable commits. Never share the HF token or permission record in GitHub, screenshots or public environment variables.
@@ -178,7 +219,7 @@ The GPU worker needs the writer `DATABASE_URL`. Set `INFERENCE_ENABLED=true` on 
 
 ## Acceptance test for actual live inference
 
-1. Record one real token swap receipt and its corresponding `tray_events` row.
+1. Record one real token swap receipt and its corresponding `metatray_events` row.
 2. Find a completed job whose input contains that event and whose source block remains canonical.
 3. Match its public `stimulusHash` to the retained video, and its `outputHash` to `prediction.npz`.
 4. Verify the model/code revisions, output dimensions and fsaverage5 vertex order.

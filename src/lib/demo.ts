@@ -18,10 +18,12 @@ export function demoSnapshot(step = 180, policy: Policy = 'momentum'): Snapshot 
       raw: { source: 'synthetic-demo' } };
     ticks.push(tick); paper = stepPaper(paper, ticks, cfg, null, tick.ts);
   }
-  return { mode: 'demo', symbol: 'TRAY', quoteSymbol: 'DEMO', now, connected: true,
+  return { mode: 'demo', symbol: 'METATRAY', quoteSymbol: 'DEMO', now, connected: true,
     stale: false, message: 'Synthetic market replay. No on-chain events or cortical predictions.',
     chainId: null, token: null, indexedBlock: null, confirmationBlocks: 0,
     heartbeat: now, ticks: ticks.slice(-300), paper, paperConfig: cfg, prediction: null,
     inferenceEnabled: false, inferenceStatus: 'Awaiting authorized TRIBE service',
-    jobs: { queued: 0, running: 0, failed: 0 }, stimulus: { text: describeMarket(ticks, paper, 'demo quote units'), inputEnd: now } };
+    jobs: { queued: 0, running: 0, failed: 0 }, stimulus: { text: describeMarket(ticks, paper, 'demo quote units'), inputEnd: now }, epochs: [],
+    feed: { source: 'demo', phase: 'live', checkedAt: now, chainHead: null, fromBlock: null, toBlock: null,
+      blockTimestamp: null, pollMs: 2000, missing: [], invalid: [], explorer: null, truncated: false } };
 }

@@ -7,9 +7,9 @@ import '@fontsource/geist-mono/500.css';
 import type { Metadata } from 'next';
 import './globals.css';
 export const metadata: Metadata = {
-  title: { default: 'Tray — Cortical Market Observatory', template: '%s | Tray' },
-  applicationName: 'Tray',
-  description: 'Tray connects token-market observations with Meta TRIBE v2 cortical-response research, inspectable inputs and paper trading. An independent experiment.'
+  title: { default: 'MetaTray — Cortical Market Observatory', template: '%s | MetaTray' },
+  applicationName: 'MetaTray',
+  description: 'MetaTray connects token-market observations with Meta TRIBE v2 cortical-response research, inspectable inputs and paper trading. An independent experiment.'
 };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <html lang="en"><body>{children}</body></html>;

@@ -7,7 +7,7 @@ export function InformationPage({ slug }: { slug: InformationSlug }) {
   const page = informationPages[slug];
   return <div className="site-root">
     <a href="#article-content" className="skip-link">Skip to content</a>
-    <div className="announcement"><span>Tray / A cortical market experiment</span><Link href="/science">Explore the science <ArrowUpRight size={14}/></Link></div>
+    <div className="announcement"><span>MetaTray / A cortical market experiment</span><Link href="/science">Explore the science <ArrowUpRight size={14}/></Link></div>
     <div className="app-shell">
       <SiteHeader active={slug}/>
       <main id="article-content">

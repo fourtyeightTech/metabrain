@@ -15,7 +15,7 @@ const schema = z.object({
   REORG_HISTORY_BLOCKS: z.coerce.number().int().min(16).max(4096).default(128),
   INFERENCE_ENABLED: z.enum(['true', 'false']).default('false'),
   INFERENCE_REFRESH_SECONDS: z.coerce.number().min(5).default(15), INFERENCE_CONTEXT_SECONDS: z.coerce.number().min(30).max(100).default(100),
-  TRAY_TOKEN_SYMBOL: z.string().max(24).default('TRAY'), TRAY_QUOTE_SYMBOL: z.string().max(24).default('QUOTE')
+  METATRAY_TOKEN_SYMBOL: z.string().max(24).default('METATRAY'), METATRAY_QUOTE_SYMBOL: z.string().max(24).default('QUOTE')
 });
 export function liveConfig() {
   const input = Object.fromEntries(Object.entries(process.env).filter(([, v]) => v !== ''));
@@ -28,6 +28,29 @@ export function liveConfig() {
   return cfg;
 }
 export type LiveConfig = ReturnType<typeof liveConfig>;
+export type DiscoveryConfig = Pick<LiveConfig, 'RPC_HTTP_URL' | 'CHAIN_ID' | 'TOKEN_ADDRESS' | 'MARKET_PROTOCOL' |
+  'PONS_FACTORY_ADDRESS' | 'PONS_HOOK_ADDRESS' | 'V4_POOL_MANAGER_ADDRESS' | 'V3_POOL_ADDRESS'>;
+
+const observerSchema = schema.pick({ RPC_HTTP_URL: true, CHAIN_ID: true, TOKEN_ADDRESS: true, MARKET_PROTOCOL: true,
+  PONS_FACTORY_ADDRESS: true, PONS_HOOK_ADDRESS: true, V4_POOL_MANAGER_ADDRESS: true, V3_POOL_ADDRESS: true,
+  CONFIRMATION_BLOCKS: true, METATRAY_TOKEN_SYMBOL: true, METATRAY_QUOTE_SYMBOL: true }).extend({
+  RPC_RECENT_BLOCKS: z.coerce.number().int().min(1).max(200).default(60),
+  RPC_MAX_EVENTS: z.coerce.number().int().min(1).max(200).default(100),
+  BLOCK_EXPLORER_URL: z.string().url().refine(v => { const u = new URL(v); return u.protocol === 'https:' && !u.username && !u.password && !u.search && !u.hash; }).optional()
+});
+export type ObserverConfig = z.infer<typeof observerSchema>;
+export function observerConfiguration() {
+  const input = Object.fromEntries(Object.entries(process.env).filter(([, v]) => v !== ''));
+  const required = ['RPC_HTTP_URL', 'CHAIN_ID', 'TOKEN_ADDRESS', input.MARKET_PROTOCOL === 'uniswap-v3' ? 'V3_POOL_ADDRESS' : 'PONS_FACTORY_ADDRESS'];
+  const missing = required.filter(key => !input[key]);
+  const parsed = observerSchema.safeParse(input);
+  const invalid = parsed.success ? [] : [...new Set(parsed.error.issues.map(issue => String(issue.path[0])))].filter(key => !missing.includes(key));
+  return { config: parsed.success && !missing.length ? parsed.data : null, missing, invalid };
+}
+export function feedSource(): 'rpc' | 'indexed' {
+  if (process.env.METATRAY_FEED === 'rpc' || process.env.METATRAY_FEED === 'indexed') return process.env.METATRAY_FEED;
+  return process.env.DATABASE_READ_URL || process.env.DATABASE_URL ? 'indexed' : 'rpc';
+}
 export function paperConfig(): PaperConfig {
   return z.object({
     initialQuote: positive(10000), feeBps: z.coerce.number().min(0).max(1000).default(30),

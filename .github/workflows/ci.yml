@@ -1,4 +1,4 @@
-name: Verify Tray
+name: Verify MetaTray
 on: [push, pull_request]
 permissions:
   contents: read
@@ -16,7 +16,7 @@ jobs:
       - run: npm test
       - run: npm run build
         env:
-          TRAY_MODE: demo
+          METATRAY_MODE: demo
           NEXT_TELEMETRY_DISABLED: '1'
   stimulus-contract:
     runs-on: ubuntu-latest
@@ -28,4 +28,4 @@ jobs:
       - run: pip install -r services/tribe/requirements-test.txt
       - run: python -m pytest services/tribe/tests -q
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg espeak-ng fonts-dejavu-core
-      - run: python services/tribe/smoke.py --render-only --out /tmp/tray-render
+      - run: python services/tribe/smoke.py --render-only --out /tmp/metatray-render

@@ -30,7 +30,7 @@ class Adapter:
         import torch
         from tribev2 import TribeModel
         self.root = Path(os.environ.get("TRIBE_MODEL_PATH", "/models/tribev2"))
-        self.provenance = json.loads((self.root / "tray-model-provenance.json").read_text())
+        self.provenance = json.loads((self.root / "metatray-model-provenance.json").read_text())
         if self.provenance["tribeRevision"] != os.environ["TRIBE_WEIGHTS_REVISION"]:
             raise RuntimeError("Downloaded weights do not match the configured revision")
         if sha256(self.root / "best.ckpt") != self.provenance["checkpointHash"] or sha256(self.root / "config.yaml") != self.provenance["configHash"]:

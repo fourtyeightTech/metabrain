@@ -1,6 +1,6 @@
 import { createPublicClient, http, parseAbi, decodeEventLog, encodeAbiParameters, keccak256,
   formatUnits, zeroAddress, type Address, type Hex, type Log, type PublicClient } from 'viem';
-import type { LiveConfig } from './config';
+import type { DiscoveryConfig, LiveConfig } from './config';
 import type { Tick } from '../types';
 
 export const ERC20 = parseAbi(['function decimals() view returns (uint8)', 'function symbol() view returns (string)']);
@@ -11,7 +11,8 @@ export const CURVE = parseAbi([
 ]);
 export const FACTORY = parseAbi([
   'struct LaunchedToken { address token; address curve; address deployer; address creatorFeeRecipient; address pairToken; uint256 graduationThreshold; uint24 poolFee; int24 tickSpacing; uint16 creatorTaxBps; bool buybackEnabled; uint8 phase; uint256 sweptQuote; uint256 sweptTokens; uint256 sweptAt; bool exists; }',
-  'function getLaunchedToken(address token) view returns (LaunchedToken)'
+  'function getLaunchedToken(address token) view returns (LaunchedToken)',
+  'function memeHook() view returns (address)', 'function poolManager() view returns (address)'
 ]);
 export const V3 = parseAbi([
   'function token0() view returns (address)', 'function token1() view returns (address)',
@@ -37,13 +38,21 @@ export function spotFromSqrt(sqrtPriceX96: bigint, tokenIs0: boolean, tokenDecim
   if (!Number.isFinite(price) || price <= 0) throw new Error('Invalid pool price');
   return price;
 }
-export async function discoverMarket(client: PublicClient, cfg: LiveConfig): Promise<MarketConfig> {
+export async function discoverMarket(client: PublicClient, cfg: DiscoveryConfig): Promise<MarketConfig> {
   if (await client.getChainId() !== cfg.CHAIN_ID) throw new Error('RPC chain ID does not match CHAIN_ID');
   await assertContract(client, cfg.TOKEN_ADDRESS);
   const tokenDecimals = await client.readContract({ address: cfg.TOKEN_ADDRESS, abi: ERC20, functionName: 'decimals' });
   let quote: Address; let rest: Partial<MarketConfig>;
   if (cfg.MARKET_PROTOCOL === 'pons-v2') {
-    await Promise.all([cfg.PONS_FACTORY_ADDRESS!, cfg.PONS_HOOK_ADDRESS!, cfg.V4_POOL_MANAGER_ADDRESS!].map(a => assertContract(client, a)));
+    if (!cfg.PONS_FACTORY_ADDRESS) throw new Error('Pons factory required');
+    await assertContract(client, cfg.PONS_FACTORY_ADDRESS);
+    const [hook, manager] = await Promise.all([
+      client.readContract({ address: cfg.PONS_FACTORY_ADDRESS, abi: FACTORY, functionName: 'memeHook' }),
+      client.readContract({ address: cfg.PONS_FACTORY_ADDRESS, abi: FACTORY, functionName: 'poolManager' })
+    ]);
+    if ((cfg.PONS_HOOK_ADDRESS && cfg.PONS_HOOK_ADDRESS.toLowerCase() !== hook.toLowerCase()) ||
+        (cfg.V4_POOL_MANAGER_ADDRESS && cfg.V4_POOL_MANAGER_ADDRESS.toLowerCase() !== manager.toLowerCase())) throw new Error('Pons contract configuration mismatch');
+    await Promise.all([hook, manager].map(a => assertContract(client, a)));
     const launch = await client.readContract({ address: cfg.PONS_FACTORY_ADDRESS!, abi: FACTORY,
       functionName: 'getLaunchedToken', args: [cfg.TOKEN_ADDRESS] });
     if (!launch.exists || launch.token.toLowerCase() !== cfg.TOKEN_ADDRESS.toLowerCase()) throw new Error('Token is not a launch in this Pons V2 factory');
@@ -52,8 +61,8 @@ export async function discoverMarket(client: PublicClient, cfg: LiveConfig): Pro
     const currency1 = currency0 === quote ? cfg.TOKEN_ADDRESS : quote;
     const poolId = keccak256(encodeAbiParameters(
       [{ type: 'address' }, { type: 'address' }, { type: 'uint24' }, { type: 'int24' }, { type: 'address' }],
-      [currency0, currency1, launch.poolFee, launch.tickSpacing, cfg.PONS_HOOK_ADDRESS!]));
-    rest = { curve: launch.curve, manager: cfg.V4_POOL_MANAGER_ADDRESS, poolId };
+      [currency0, currency1, launch.poolFee, launch.tickSpacing, hook]));
+    rest = { curve: launch.curve, manager, poolId };
   } else {
     await assertContract(client, cfg.V3_POOL_ADDRESS!);
     const [a, b] = await Promise.all(['token0', 'token1'].map(functionName => client.readContract({
@@ -83,7 +92,7 @@ export function decodeSwap(log: Log, market: MarketConfig, chainId: number, ts: 
       extra = { feeRaw: event.args.fee.toString(), taxRaw: event.args.tax.toString() };
     }
     price = curvePrice ?? Number(formatUnits(quoteRaw, market.quoteDecimals)) / Number(formatUnits(tokenRaw, market.tokenDecimals));
-    venue = 'pons-v2-curve'; extra.priceBasis = curvePrice ? 'post-block curve reserve ratio' : 'effective execution ratio; reserves unavailable after graduation';
+    venue = 'pons-v2-curve'; extra.priceBasis = curvePrice ? 'post-block curve reserve ratio' : 'effective execution ratio from event amounts';
   } else if (market.pool && address === market.pool.toLowerCase()) {
     let event; try { event = decodeEventLog({ abi: V3, data: log.data, topics: topic }); } catch { return null; }
     const a = event.args; const amount = market.tokenIs0 ? a.amount0 : a.amount1;

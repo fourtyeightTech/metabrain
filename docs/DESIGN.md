@@ -1,6 +1,6 @@
-# Tray website design
+# MetaTray website design
 
-Tray uses a dark editorial layout with a prominent interactive cortical viewer. The interface, branding and content belong to this independent project. Scientific attribution identifies the upstream model and its sources.
+MetaTray uses a dark editorial layout with a prominent interactive cortical viewer. The interface, branding and content belong to this independent project. Scientific attribution identifies the upstream model and its sources.
 
 ## Visual system
 
@@ -13,7 +13,7 @@ Tray uses a dark editorial layout with a prominent interactive cortical viewer. 
 | Actions | Off-white primary buttons with dark text; bracket-corner secondary hero action |
 | Product panels | Fine square outlines, restrained stacked-frame treatment, compact tab strip |
 | Signal colors | Muted green and amber reserved for market direction and model-value meaning |
-| Footer | Large outlined TRAY wordmark, independent-project statement and useful navigation |
+| Footer | Large outlined METATRAY wordmark, independent-project statement and useful navigation |
 
 ## Page structure
 
@@ -24,7 +24,7 @@ Tray uses a dark editorial layout with a prominent interactive cortical viewer. 
 5. Expandable questions explaining model meaning, update timing, paper-only behavior and schematic geometry.
 6. Explanatory page cards and a footer with research, product and legal navigation, plus the current data mode.
 
-Dedicated routes provide About Tray, the Meta science, the trade-to-response path, model setup, terms and privacy. Informational routes use the same shared header/footer and a readable article layout with section anchors, a table of contents, source links and related-page navigation. Product copy identifies Meta TRIBE as the upstream research model without implying sponsorship.
+Dedicated routes provide About MetaTray, the science, the trade-to-response path, the science-grounded lore, model setup, code evidence, terms and privacy. Informational routes use the same shared header/footer and a readable article layout with section anchors, a table of contents, source links and related-page navigation. Product copy identifies Meta TRIBE as the upstream research model without implying sponsorship.
 
 The phone layout stacks the hero, removes the duplicate receipt callout and wraps dense status lines. Wide trade tables scroll inside their own panel. Navigation remains available without a hover menu.
 

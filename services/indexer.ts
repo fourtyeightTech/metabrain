@@ -11,7 +11,7 @@ const client = makeClient(cfg) as PublicClient;
 const market = await discoverMarket(client, cfg);
 const lock = await db.connect();
 const locked = await lock.query('SELECT pg_try_advisory_lock(72389411) AS locked');
-if (!locked.rows[0].locked) throw new Error('A Tray indexer already owns this database');
+if (!locked.rows[0].locked) throw new Error('A MetaTray indexer already owns this database');
 const identity = { chainId: cfg.CHAIN_ID, token: cfg.TOKEN_ADDRESS, startBlock: cfg.TOKEN_START_BLOCK, confirmations: cfg.CONFIRMATION_BLOCKS, market, paper };
 const signature = createHash('sha256').update(JSON.stringify(identity)).digest('hex');
 const previous = await getState<string>(db, 'configurationHash');
@@ -19,7 +19,7 @@ if (previous && previous !== signature) throw new Error('Database belongs to a d
 await setState(db, 'configurationHash', signature);
 await setState(db, 'paperConfig', paper);
 await setState(db, 'market', { chainId: cfg.CHAIN_ID, token: cfg.TOKEN_ADDRESS,
-  symbol: cfg.TRAY_TOKEN_SYMBOL, quoteSymbol: cfg.TRAY_QUOTE_SYMBOL,
+  symbol: cfg.METATRAY_TOKEN_SYMBOL, quoteSymbol: cfg.METATRAY_QUOTE_SYMBOL,
   confirmationBlocks: cfg.CONFIRMATION_BLOCKS, inferenceEnabled: cfg.INFERENCE_ENABLED === 'true' });
 let busy = false; let stopping = false;
 async function sync() {
@@ -30,7 +30,7 @@ async function sync() {
     if (cursor) {
       const head = await client.getBlock({ blockNumber: BigInt(cursor.number) });
       if (head.hash !== cursor.hash) {
-        const checkpoints = (await db.query<{ number: string; hash: string }>('SELECT number,hash FROM tray_blocks ORDER BY number DESC LIMIT $1', [cfg.REORG_HISTORY_BLOCKS])).rows;
+        const checkpoints = (await db.query<{ number: string; hash: string }>('SELECT number,hash FROM metatray_blocks ORDER BY number DESC LIMIT $1', [cfg.REORG_HISTORY_BLOCKS])).rows;
         let ancestor: number | null = null;
         for (const b of checkpoints) if ((await client.getBlock({ blockNumber: BigInt(b.number) })).hash === b.hash) { ancestor = Number(b.number); break; }
         if (ancestor === null) throw new Error('Deep reorg: no stored canonical ancestor; operator rebuild required');
@@ -61,10 +61,10 @@ async function sync() {
       }
     }
     if (cfg.INFERENCE_ENABLED === 'true') await transaction(tx => queueInference(tx, {
-      now: Date.now(), contextSeconds: cfg.INFERENCE_CONTEXT_SECONDS, refreshSeconds: cfg.INFERENCE_REFRESH_SECONDS, quote: cfg.TRAY_QUOTE_SYMBOL }));
+      now: Date.now(), contextSeconds: cfg.INFERENCE_CONTEXT_SECONDS, refreshSeconds: cfg.INFERENCE_REFRESH_SECONDS, quote: cfg.METATRAY_QUOTE_SYMBOL }));
     const current = await getState<{ number: number }>(db, 'cursor');
-    if (current) await db.query(`DELETE FROM tray_blocks b WHERE b.number<$1 AND NOT EXISTS (
-      SELECT 1 FROM tray_jobs j WHERE j.source_block=b.number AND j.status IN ('queued','running'))`,
+    if (current) await db.query(`DELETE FROM metatray_blocks b WHERE b.number<$1 AND NOT EXISTS (
+      SELECT 1 FROM metatray_jobs j WHERE j.source_block=b.number AND j.status IN ('queued','running'))`,
       [current.number - cfg.REORG_HISTORY_BLOCKS + 1]);
     await setState(db, 'health', { heartbeat: Date.now(), ok: true,
       message: from <= to && to < tip ? `Catching up: indexed block ${to} of ${tip}` : 'Following mined events; confirmation depth is not a finality guarantee.' });
@@ -81,7 +81,7 @@ if (cfg.RPC_WS_URL) {
   const ws = createPublicClient({ transport: webSocket(cfg.RPC_WS_URL, { reconnect: true }) });
   unwatch = ws.watchBlockNumber({ onBlockNumber: () => { void sync(); }, onError: () => console.error('WebSocket interrupted; HTTP catch-up remains active.') });
 }
-console.log('Tray indexer running. Paper-only; no signing keys.');
+console.log('MetaTray indexer running. Paper-only; no signing keys.');
 async function shutdown() {
   stopping = true; clearInterval(timer); unwatch?.();
   while (busy) await new Promise(resolve => setTimeout(resolve, 50));

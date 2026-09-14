@@ -2,9 +2,17 @@
 
 Prepared 2026-09-14. This record describes checks performed while building the source handoff. It does not claim a GitHub deployment, a Vercel deployment, access to a new token, a measured human response or a completed TRIBE model run.
 
-## Current revision: runtime verification pending
+## Current revision: live-feed implementation checked locally
 
-The latest source removes the prior external design references, uses the product name Tray, and adds real informational routes, shared navigation, terms and privacy. At source handoff, testing of these changes was deferred. Publication was subsequently authorized. Before that publication, the build, unit tests and browser suite had **not** been run for these latest changes. Consult GitHub Actions for results on the newly published commit. Checks listed below describe the previously published implementation, not acceptance of this revision. The existing browser script has been updated for link navigation and the new pages so it can be run against this revision.
+This revision adds a server-side direct RPC observer, structured setup/error snapshots, visible incoming swaps and pipeline status, trade-driven illustrative 3D pulses, a cortical-epoch chronicle and an evidence page with actual MetaTray and pinned Meta source links. Completed fixture predictions were verified as selectable historical epochs and as downloadable JSON and 1200 x 630 PNG receipts. The `/lore` route was checked alongside the explanatory, evidence and legal routes; every story term on that page is explicitly tied to an implemented state. Live mode is the default; demo replay must be explicitly selected. Vercel is configured as one ordinary root Next.js project; Services mode and the Python worker are excluded.
+
+The current production build and all **18 Node tests** passed, including tests for confirmed-window bounds, real ABI decoding, duplicate/removed events, wrong-chain rejection, event/block mismatch, reorg-during-read rejection, stale blocks, quiet markets, event caps, Pons factory discovery, privacy-safe setup errors and cortical-epoch market summaries. The unchanged Python scientific-contract suite was rerun: **5 tests passed**.
+
+The production-browser story passed for desktop/mobile rendering, live setup instructions, both repository links, event updates without WebGL canvas replacement, receipt/explorer keyboard navigation, pause/outage behavior, model-surface rendering with a controlled fixture, cortical-epoch selection, lore navigation, data/visual receipt downloads and a visible WebGL fallback. It checks horizontal overflow at 320, 390, 768, 1024 and 1440 pixels. The controlled RPC-shaped and model-shaped browser responses are test fixtures, not real on-chain observations or completed Meta inference. Generated screenshots and the browser JSON report are excluded from publication.
+
+A read-only check against a public Ethereum RPC reference market was attempted from the build environment; the endpoint was unavailable and no live-chain pass is claimed. This project's actual token, chain, private RPC endpoint and deployed website URL have not been supplied. The separately hosted GPU service has not run here. Published/deployed operation must be checked independently after configuration; local test success does not establish a live deployment.
+
+The historical records below describe earlier checks and are retained for context.
 
 ## Checks completed
 
@@ -20,11 +28,11 @@ The latest source removes the prior external design references, uses the product
 | Real media rendering | eSpeak NG and FFmpeg produced a 100-second synthetic smoke stimulus: H.264 video, 640 × 360 at 8 fps, AAC audio, factual speech plus declared trade tones |
 | Browser flows | Automated Chromium story passed at 1440 × 1100 and 390 × 844; additional horizontal-overflow checks at 320, 768 and 1024 px widths; actual production server and APIs used |
 | Browser controls | 3D schematic, hero viewer tabs and arrow keys, camera pause/resume, reduced-motion preference, FAQ expansion, policy selector, pause/reset, chart range, event dialog/Escape, receipt download and science/deployment tabs exercised |
-| Failure boundary | A separately started `TRAY_MODE=live` server without a database returned 503 and did not return synthetic trades; demo has no prediction/mesh endpoint output |
-| Visual inspection | Updated Tray desktop and mobile screenshots inspected; no horizontal page overflow detected at the five tested widths |
+| Failure boundary | A separately started `METATRAY_MODE=live` server without a database returned 503 and did not return synthetic trades; demo has no prediction/mesh endpoint output |
+| Visual inspection | Updated MetaTray desktop and mobile screenshots inspected; no horizontal page overflow detected at the five tested widths |
 | Archive | Source allowlist, common-secret scan, per-file SHA-256 manifest and ZIP integrity check performed by the packaging script |
 
-The Node suite contains **10 passing tests**. The Python scientific-contract suite contains **5 passing tests**. Those tests use explicitly synthetic fixtures. They are not accuracy evaluations of TRIBE and are not observations from a live token.
+The earlier Node suite contained **10 passing tests**; the current suite has 18, as recorded above. The Python scientific-contract suite contains **5 passing tests**. Those tests use explicitly synthetic fixtures. They are not accuracy evaluations of TRIBE and are not observations from a live token.
 
 The visual revision replaced the typography, layout and styling, moved the existing cortical viewer into the hero, added viewer tabs and controllable camera motion, and retained the backend contracts. The production build (including TypeScript) and browser story were rerun after these changes. Backend unit-test results above are from the original implementation; those unchanged suites were not rerun for the visual revision. The heavy viewer remains dynamically imported, and its event listeners, animation loop and GPU resources are disposed on unmount.
 
@@ -45,7 +53,7 @@ The environment required a locally unpacked test browser and speech binary. They
 - Actual Pons deployment addresses, factory generation, pool key and a genuine new-token swap. The archive deliberately supplies no token/network defaults.
 - Real-chain outage recovery, confirmation behavior and reorg handling under the chosen provider. The store behavior has been tested against PostgreSQL semantics with fixtures, not a deployed chain.
 - GPU Docker image build, full Python dependency resolution on that image, gated feature-model access or weights download.
-- A full TRIBE inference run, transcription/alignment output, numeric agreement with the official notebook or the real fsaverage5 model-output rendering path.
+- A full TRIBE inference run, transcription/alignment output, numeric agreement with the official notebook or a real fsaverage5 output from an actual model run. The browser model-display contract has been checked only with a controlled fixture.
 - Minimum GPU VRAM, end-to-end processing latency, steady-state throughput, feature-cache growth, storage cost or a sustainable inference refresh interval.
 - Simultaneous real Postgres GPU-worker publication/reorg contention under multiple networked services. The implementation serializes those operations by job row locks; deployment should test this behavior.
 - Financial predictive value, profitability, calibrated psychological interpretation or human-response validity for market stimuli.
