@@ -63,15 +63,16 @@ try {
   const download = await downloadPromise; const stream = await download.createReadStream();
   let receipt = ''; for await (const part of stream) receipt += part;
   const parsed = JSON.parse(receipt); assert.equal(parsed.snapshot.mode, 'demo'); assert.equal(parsed.prediction, null);
-  await nav.getByRole('button', { name: 'The science', exact: true }).click();
+  await nav.getByRole('link', { name: 'The science', exact: true }).click();
   await page.getByRole('heading', { name: 'Timing and uncertainty' }).waitFor();
-  await nav.getByRole('button', { name: 'Deployment', exact: true }).click();
+  await page.getByRole('link', { name: 'Model setup', exact: true }).click();
   await page.getByRole('heading', { name: 'Three services. One observatory.' }).waitFor();
-  await nav.getByRole('button', { name: 'Observatory', exact: true }).click();
+  await nav.getByRole('link', { name: 'Observatory', exact: true }).click();
   await page.getByRole('button', { name: 'Reset replay' }).click();
   await page.getByRole('button', { name: 'Reset brain view' }).click();
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole('button', { name: 'Dismiss notification' }).click();
+  const dismiss = page.getByRole('button', { name: 'Dismiss notification' });
+  if (await dismiss.count()) await dismiss.click();
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: new URL('mobile.png', out).pathname, fullPage: true });
   await page.screenshot({ path: new URL('mobile-hero.png', out).pathname });
@@ -85,6 +86,13 @@ try {
     await page.setViewportSize({ width, height: 1000 });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false, `Page overflows at ${width}px`);
   }
+  for (const route of ['about', 'science', 'how-it-works', 'deployment', 'terms', 'privacy']) {
+    await page.goto(`http://127.0.0.1:3100/${route}`, { waitUntil: 'domcontentloaded' });
+    await page.getByRole('heading', { level: 1 }).waitFor();
+    assert.equal(await page.title(), ({ about: 'About', science: 'The science', 'how-it-works': 'How it works', deployment: 'Model setup', terms: 'Terms of use', privacy: 'Privacy' })[route] + ' | Tray');
+    assert.ok(await page.locator('.article-body section').count() > 0);
+    await page.getByRole('navigation', { name: 'On this page' }).waitFor();
+  }
   const health = await (await fetch('http://127.0.0.1:3100/api/health')).json(); assert.equal(health.status, 'demo');
   assert.equal((await fetch('http://127.0.0.1:3100/api/predictions/not-an-id')).status, 400);
   assert.equal((await fetch('http://127.0.0.1:3100/api/mesh')).status, 404);
@@ -94,7 +102,7 @@ try {
   assert.deepEqual(errors, []);
   const report = { status: 'passed', viewport: ['1440x1100', '390x844', '320x1000', '768x1000', '1024x1000'],
     checks: ['production render', '3D schematic', 'hero viewer tabs and arrow keys', 'camera rotation and reduced motion', 'FAQ expansion', 'paper policy controls', 'pause/reset', 'event modal and Escape',
-      'chart range', 'receipt download', 'science/deployment tabs', 'mobile overflow', 'API mode boundaries'],
+      'chart range', 'receipt download', 'informational routes, titles and navigation', 'mobile overflow', 'API mode boundaries'],
     realChainTested: false, realTribeTested: false };
   await writeFile(new URL('report.json', out), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 2));

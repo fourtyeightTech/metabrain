@@ -2,6 +2,10 @@
 
 Prepared 2026-09-14. This record describes checks performed while building the source handoff. It does not claim a GitHub deployment, a Vercel deployment, access to a new token, a measured human response or a completed TRIBE model run.
 
+## Current revision: runtime verification pending
+
+The latest source removes the prior external design references, uses the product name Tray, and adds real informational routes, shared navigation, terms and privacy. At source handoff, testing of these changes was deferred. Publication was subsequently authorized. Before that publication, the build, unit tests and browser suite had **not** been run for these latest changes. Consult GitHub Actions for results on the newly published commit. Checks listed below describe the previously published implementation, not acceptance of this revision. The existing browser script has been updated for link navigation and the new pages so it can be run against this revision.
+
 ## Checks completed
 
 | Area | Evidence / result |
@@ -17,7 +21,7 @@ Prepared 2026-09-14. This record describes checks performed while building the s
 | Browser flows | Automated Chromium story passed at 1440 × 1100 and 390 × 844; additional horizontal-overflow checks at 320, 768 and 1024 px widths; actual production server and APIs used |
 | Browser controls | 3D schematic, hero viewer tabs and arrow keys, camera pause/resume, reduced-motion preference, FAQ expansion, policy selector, pause/reset, chart range, event dialog/Escape, receipt download and science/deployment tabs exercised |
 | Failure boundary | A separately started `TRAY_MODE=live` server without a database returned 503 and did not return synthetic trades; demo has no prediction/mesh endpoint output |
-| Visual inspection | Updated AgentMail-inspired desktop and mobile screenshots inspected; no horizontal page overflow detected at the five tested widths |
+| Visual inspection | Updated Tray desktop and mobile screenshots inspected; no horizontal page overflow detected at the five tested widths |
 | Archive | Source allowlist, common-secret scan, per-file SHA-256 manifest and ZIP integrity check performed by the packaging script |
 
 The Node suite contains **10 passing tests**. The Python scientific-contract suite contains **5 passing tests**. Those tests use explicitly synthetic fixtures. They are not accuracy evaluations of TRIBE and are not observations from a live token.
@@ -32,7 +36,7 @@ GitHub Actions results are reported separately in the repository's Actions tab. 
 
 ## Local environment
 
-The observed build/test host used Node 24.19.0 and Python 3.12. The Python CPU test dependencies included NumPy 2.2.6, Pillow 11.3.0 and pytest 8.4.2. The browser used Playwright 1.58.2 with Chromium 153. The CI file additionally targets Node 22 and Python 3.11 on GitHub Actions; that hosted workflow has not been run by this handoff.
+The observed build/test host used Node 24.19.0 and Python 3.12. The Python CPU test dependencies included NumPy 2.2.6, Pillow 11.3.0 and pytest 8.4.2. The browser used Playwright 1.58.2 with Chromium 153. The CI file additionally targets Node 22 and Python 3.11 on GitHub Actions; hosted results are recorded separately for each published commit.
 
 The environment required a locally unpacked test browser and speech binary. They were used only for verification and are not included in the ZIP. The supplied GPU Dockerfile installs ordinary system packages instead.
 

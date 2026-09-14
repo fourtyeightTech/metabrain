@@ -1,4 +1,4 @@
-# Tray the Trader
+# Tray
 
 **A cortical market observatory with paper trading, built around Meta TRIBE v2.**
 
@@ -8,7 +8,9 @@ Tray turns observed token trades into a market-screen video, trade tones and a f
 
 The included demo runs immediately on Vercel. Live data requires your new token's chain and protocol configuration, Postgres and a persistent indexer. Actual cortical output also requires a compatible GPU service, model access and permission for the intended use. No predictions or trading returns from the real model are claimed by this package.
 
-The website uses an AgentMail-inspired visual direction: a near-black canvas, large white typography, monospace controls, fine layout rails and a split hero containing the interactive 3D cortex. Tray has its own branding, content and original UI implementation. Read [DESIGN.md](docs/DESIGN.md) for the design specification.
+Tray’s visual identity uses a near-black canvas, large white typography, monospace controls, fine layout rails and a split hero containing the interactive 3D cortex. Tray has its own branding, content and original UI implementation. Read [DESIGN.md](docs/DESIGN.md) for the design specification.
+
+The website has dedicated routes for `/about`, `/science`, `/how-it-works`, `/deployment`, `/terms` and `/privacy`. The science pages explain the actual Meta TRIBE interface, feature models, cortical output and experimental paper policy. The terms are a draft for review and do not promise complete exclusion of liability; see [LEGAL_REVIEW.md](docs/LEGAL_REVIEW.md).
 
 ## Run the website
 
@@ -31,6 +33,8 @@ npm start
 Import `fourtyeightTech/metabrain` into Vercel, select the Next.js preset, and keep the root directory at `.`. The supplied `vercel.json` defines `npm ci` and `npm run build`. Set `TRAY_MODE=demo` for the initial deployment. The demo needs no database, RPC credentials or model weights.
 
 Live mode is a separate configuration step: deploy the persistent indexer and database, then connect the optional GPU worker as described in [DEPLOYMENT.md](docs/DEPLOYMENT.md). The 3D demo is explicitly illustrative until an actual model result exists.
+
+Set `TRAY_PUBLIC_CONTACT_URL` to a public HTTPS page that offers an appropriate private contact route for terms/privacy requests, then rebuild. No personal contact details are included in the source. The privacy notice must match the deployment's actual provider and retention settings.
 
 ## What is implemented
 

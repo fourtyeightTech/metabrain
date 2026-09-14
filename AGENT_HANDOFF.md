@@ -6,6 +6,8 @@ Deploy the Next.js project in `fourtyeightTech/metabrain` to Vercel, then connec
 
 This repository is a source handoff. Repository publication does not establish a website deployment, a connection to a live token or a completed TRIBE inference run. Do not report those steps complete until you perform and verify them.
 
+The current revision renames the product to Tray and adds dedicated explanatory and legal pages. Publication of this source was authorized after the source handoff. Do not report this revision as runtime-tested based on results from an earlier commit. Check the current commit’s CI and deployment results. Review `docs/LEGAL_REVIEW.md` before adopting the terms for a public deployment.
+
 ## Phase 1: publish the working demo
 
 1. Clone `https://github.com/fourtyeightTech/metabrain.git` and use the checkout root as the application root.
@@ -14,7 +16,7 @@ This repository is a source handoff. Repository publication does not establish a
 4. Run `npm run verify:browser` on a supported Linux host. The command starts temporary production servers itself. Screenshots and its JSON report go to `artifacts/browser/`, which is excluded from commits.
 5. Continue work in this repository. Preserve any subsequent operator changes. Use privacy-preserving commit metadata and keep personal contact information out of public files. Commit source files, `.env.example` and the lockfile. Do not commit actual `.env`, artifacts, models, logs, `node_modules`, `.next` or `.venv`.
 6. Import `fourtyeightTech/metabrain` into Vercel as Next.js. Root directory is `.`; build command `npm run build`; install `npm ci`. Set `TRAY_MODE=demo` explicitly. No RPC/database/model environment is needed yet.
-7. Open the production URL on desktop and mobile. Verify synthetic mode labels, hero viewer tabs, camera controls, chart, policy selector, event receipt, export and science page. Confirm the schematic is not described as model output and reduced-motion preferences stop automatic camera rotation.
+7. Open the production URL on desktop and mobile. Verify synthetic mode labels, hero viewer tabs, camera controls, chart, policy selector, event receipt, export and all six informational routes. Confirm the schematic is not described as model output and reduced-motion preferences stop automatic camera rotation. Set a suitable public contact URL and make the privacy/terms text match the actual operator and hosting arrangements.
 
 ## Phase 2: connect the new token
 
@@ -56,7 +58,7 @@ Set only `TRAY_MODE=live` and `DATABASE_READ_URL` in Vercel, then redeploy. No R
 
 ## Do not silently change
 
-Keep the supplied AgentMail-inspired visual direction: monochrome split hero, prominent interactive cortex, fine borders, Inter with Geist Mono, factual research labels and the dashboard below. The reference is a visual direction, not an affiliation. Do not add AgentMail's branding, customer logos, funding claims or testimonials. Camera rotation is presentation motion, not a prediction changing.
+Keep Tray’s visual identity: monochrome split hero, prominent interactive cortex, fine borders, Inter with Geist Mono, factual research labels and the dashboard below. Use Tray branding and factual attribution to the research software. Do not imply endorsement by a research provider. Camera rotation is presentation motion, not a prediction changing.
 
 Do not fill missing predictions with animated random values. Do not relabel the momentum baseline as TRIBE trading. Do not change the upstream model's noncausal architecture to imply streaming validity. Do not adjust stale-result limits just to make the live indicator appear healthy. Do not add user identity fields, wallet ranking, speculative buyer psychology, token taxes, treasury orders or automated promotion without a separate task.
 

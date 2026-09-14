@@ -16,6 +16,8 @@ Import the new repository into Vercel with the framework preset **Next.js**. Use
 
 Set `TRAY_MODE=demo`. Deploy. No database or RPC variables are needed. There is no production model download in the web build. Do not set secrets with a `NEXT_PUBLIC_` prefix.
 
+The website includes `/about`, `/science`, `/how-it-works`, `/deployment`, `/terms` and `/privacy`. Set `TRAY_PUBLIC_CONTACT_URL` to an HTTPS page offering an appropriate private contact route, and rebuild after changing it. This value is intended to be public; it must not contain credentials. Review `docs/LEGAL_REVIEW.md` and adapt the terms/privacy pages to the actual deployment before adopting them.
+
 Local equivalent:
 
 ```bash

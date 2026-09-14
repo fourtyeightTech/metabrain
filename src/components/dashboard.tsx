@@ -1,8 +1,10 @@
 'use client';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
+import { SiteFooter, SiteHeader } from './site-chrome';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Activity, ArrowDownLeft, ArrowUpRight, ArrowRight, AudioLines, BookOpen, BrainCircuit, Check, ChevronRight, CircleDot,
-  Download, ExternalLink, FlaskConical, Layers3, Pause, Play, Radio, RotateCcw, Terminal, Wallet, X } from 'lucide-react';
+  Download, Pause, Play, Radio, RotateCcw, Wallet, X } from 'lucide-react';
 import { PriceChart, ResponseTrace } from './chart';
 import { equity } from '@/lib/paper';
 import type { MeshData, Policy, PredictionResult, Snapshot } from '@/lib/types';
@@ -11,12 +13,11 @@ const Cortex = dynamic(() => import('./cortex'), { ssr: false, loading: () => <d
 const money = (v: number, digits = 2) => v.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits });
 const number = (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 3, notation: v > 100000 ? 'compact' : 'standard' });
 const short = (s: string) => s ? `${s.slice(0, 8)}…${s.slice(-4)}` : 'Synthetic';
-type Tab = 'observatory' | 'science' | 'deploy';
 
 export default function Dashboard() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null); const [error, setError] = useState('');
   const [paused, setPaused] = useState(false); const [step, setStep] = useState(180);
-  const [policy, setPolicy] = useState<Policy>('momentum'); const [tab, setTab] = useState<Tab>('observatory');
+  const [policy, setPolicy] = useState<Policy>('momentum');
   const [result, setResult] = useState<PredictionResult | null>(null); const [mesh, setMesh] = useState<MeshData | null>(null);
   const [selected, setSelected] = useState<string | null>(null); const [notice, setNotice] = useState('');
   const [heroView, setHeroView] = useState<'cortex' | 'stimulus' | 'receipt'>('cortex');
@@ -82,27 +83,22 @@ export default function Dashboard() {
   const activePolicy = snapshot?.paperConfig.policy ?? policy;
   const selectedTick = ticks.find(t => t.id === selected);
   const openObservatory = () => {
-    setTab('observatory');
     requestAnimationFrame(() => document.getElementById('observatory')?.scrollIntoView({
       behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'
     }));
   };
   return <div className="site-root">
-    {announcement ? <div className="announcement"><span>Introducing Tray. A cortical market experiment.</span><button onClick={() => setTab('science')}>Explore the science <ArrowRight size={14}/></button><button className="announcement-close" aria-label="Dismiss announcement" onClick={() => setAnnouncement(false)}><X size={16}/></button></div> : null}
+    <a href="#main-content" className="skip-link">Skip to content</a>
+    {announcement ? <div className="announcement"><span>Introducing Tray. A cortical market experiment.</span><Link href="/science">Explore the science <ArrowRight size={14}/></Link><button className="announcement-close" aria-label="Dismiss announcement" onClick={() => setAnnouncement(false)}><X size={16}/></button></div> : null}
     <div className="app-shell">
-    <header className="topbar">
-      <a className="brand" href="/" aria-label="Tray home"><BrainCircuit size={29} strokeWidth={1.8}/><span>tray<span className="brand-dot">.</span></span></a>
-      <nav aria-label="Main navigation">{(['observatory', 'science', 'deploy'] as const).map(t => <button key={t} className={tab === t ? 'nav-active' : ''} onClick={() => setTab(t)}>{t === 'observatory' ? 'Observatory' : t === 'science' ? 'The science' : 'Deployment'}</button>)}</nav>
-      <div className="header-actions"><div className="topbar-status"><span className={`status-dot ${error || snapshot?.stale ? 'warning' : ''}`}/>{demo ? 'DEMO' : 'ON-CHAIN'}</div><button className="primary-button header-cta" onClick={openObservatory}>Open view <ArrowUpRight size={14}/></button></div>
-    </header>
-    <main>
-      {tab === 'observatory' ? <>
+    <SiteHeader active="observatory" status={demo ? 'DEMO' : 'ON-CHAIN'} warning={!!error || !!snapshot?.stale}/>
+    <main id="main-content">
         <section className="hero">
           <div className="hero-copy">
             <div className="research-badge"><span>EXPERIMENT 001</span><i/><span>TRIBE v2</span></div>
             <h1>Token markets.<br/>Cortical responses.</h1>
-            <p>Meet Tray, the paper trader exploring a model of human cortical responses. Watch the market become an experience you can inspect.</p>
-            <div className="hero-actions"><button className="primary-button" onClick={openObservatory}>Open observatory <ArrowRight size={17}/></button><button className="bracket-button" onClick={() => setTab('science')}>The science <ArrowUpRight size={16}/></button></div>
+            <p>Tray turns token-market observations into sensory inputs for Meta’s TRIBE v2 cortical-response model. Explore the market, the stimulus, and the resulting experiment.</p>
+            <div className="hero-actions"><button className="primary-button" onClick={openObservatory}>Open observatory <ArrowRight size={17}/></button><Link className="bracket-button" href="/science">The science <ArrowUpRight size={16}/></Link></div>
             <div className="hero-note">Paper trading only. Predicted cortical activity.</div>
             <button className="feature-callout" onClick={() => setHeroView('receipt')}><span className="eyebrow">UNDER THE SURFACE</span><strong>Every response has a receipt. <ArrowUpRight size={16}/></strong><span>Inspect the input, model version, and processing delay.</span></button>
           </div>
@@ -119,9 +115,9 @@ export default function Dashboard() {
             <div className="event-preview"><div className="event-preview-heading"><span><Radio size={13}/> Market events</span><span>{demo ? 'SYNTHETIC REPLAY' : 'ON-CHAIN FEED'}</span></div>{ticks.slice(-2).reverse().map(t => <button key={t.id} onClick={() => setSelected(t.id)} className="preview-event"><span className={`trade-side ${t.side}`}>{t.side === 'buy' ? <ArrowDownLeft size={12}/> : <ArrowUpRight size={12}/>} {t.side.toUpperCase()}</span><span>{number(t.quoteAmount)} <small>{quote}</small></span><span>{new Date(t.ts).toLocaleTimeString('en-GB')}</span><ChevronRight size={13}/></button>)}{!ticks.length ? <p>Waiting for observed trades.</p> : null}</div>
           </div>
         </section>
-        <div className="research-strip"><p>Market data meets a model of human response.</p><div><span><Radio size={22}/><b>Pons</b><small>MARKET ADAPTER</small></span><span><BrainCircuit size={25}/><b>TRIBE v2</b><small>MODEL REFERENCE</small></span><span><Wallet size={22}/><b>Paper only</b><small>TRADING MODE</small></span></div></div>
+        <div className="research-strip"><p>Market data meets a model of human response.</p><div><span><Radio size={22}/><b>Pons</b><small>MARKET ADAPTER</small></span><span><BrainCircuit size={25}/><b>Meta TRIBE v2</b><small>MODEL INTEGRATION</small></span><span><Wallet size={22}/><b>Paper only</b><small>TRADING MODE</small></span></div></div>
         <section className="observatory-intro" id="observatory"><span className="section-kicker">[ Observatory ]</span><h2>Follow the experiment.</h2><p>The market, the sensory input, and Tray’s paper decisions.</p><button className="secondary-button" onClick={exportSession} disabled={!snapshot}><Download size={14}/> Export receipt</button></section>
-        <div className={`mode-banner ${error ? 'error-banner' : ''}`} role="status"><div><Radio size={15}/><span>{error || (demo ? 'Synthetic market replay' : snapshot?.stale ? 'Chain feed is stale' : 'Following on-chain market events')}</span><small>{error ? 'Last received values may be stale.' : demo ? 'Demo prices. No model predictions. No real funds.' : snapshot?.message}</small></div><button onClick={() => setTab('deploy')}>{demo ? 'Connect live services' : 'Service setup'}<ChevronRight size={15}/></button></div>
+        <div className={`mode-banner ${error ? 'error-banner' : ''}`} role="status"><div><Radio size={15}/><span>{error || (demo ? 'Synthetic market replay' : snapshot?.stale ? 'Chain feed is stale' : 'Following on-chain market events')}</span><small>{error ? 'Last received values may be stale.' : demo ? 'Demo prices. No model predictions. No real funds.' : snapshot?.message}</small></div><Link href="/deployment">{demo ? 'Connect live services' : 'Service setup'}<ChevronRight size={15}/></Link></div>
         <section className="stats-grid" aria-label="Market and paper account statistics">
           <Stat label={`${snapshot?.symbol ?? 'TRAY'} / ${quote}`} value={price ? price.toFixed(6) : '—'} detail={`${change >= 0 ? '+' : ''}${change.toFixed(2)}% in displayed history`} positive={change >= 0} icon={<CircleDot size={16}/>}/>
           <Stat label="OBSERVED VOLUME" value={number(volume)} detail={`${quote} · ${ticks.length} displayed trades`} icon={<Activity size={16}/>}/>
@@ -154,8 +150,12 @@ export default function Dashboard() {
           ['Does Tray trade real money?', 'No. The account and its fills are simulated. The observer, momentum, and cortical policies can be compared without signing or sending financial transactions.'],
           ['Why am I seeing a schematic?', 'The default demo runs without a model service. Its 3D geometry is illustrative. Actual cortical values appear only after the configured TRIBE worker produces a result.']
         ].map(([question, answer]) => <details key={question}><summary>{question}<span>+</span></summary><p>{answer}</p></details>)}</div></section>
-      </> : tab === 'science' ? <Science/> : <Deployment/>}
-      <footer><div className="footer-wordmark" aria-hidden="true">TRAY</div><div className="footer-content"><div><a className="brand" href="/" aria-label="Tray home"><BrainCircuit size={25}/><span>tray.</span></a><p>A cortical market experiment.<br/>Independent software. No Meta affiliation.</p></div><div className="footer-links"><button onClick={openObservatory}>Observatory <ArrowUpRight size={13}/></button><button onClick={() => setTab('science')}>Scientific boundaries <ArrowUpRight size={13}/></button><button onClick={() => setTab('deploy')}>Deployment guide <ArrowUpRight size={13}/></button></div></div><div className="footer-bottom"><span>© 2026 Tray. Paper trading only.</span><span><span className="status-dot"/>{demo ? 'DEMO · SYNTHETIC MARKET DATA' : 'ON-CHAIN OBSERVATIONS'}</span></div></footer>
+      <section className="explore-pages" aria-label="Learn about Tray"><div><span className="section-kicker">[ Inside Tray ]</span><h2>Understand the experiment.</h2></div><div className="explore-grid">{[
+        ['/about', '01', 'About Tray', 'The idea, the experience, and the boundaries.'],
+        ['/science', '02', 'The Meta model', 'Inputs, cortical output, timing, and original sources.'],
+        ['/how-it-works', '03', 'From trade to response', 'Follow the data through each stage of the system.']
+      ].map(([href, index, title, description]) => <Link href={href} key={href}><span>{index}<ArrowUpRight size={16}/></span><h3>{title}</h3><p>{description}</p></Link>)}</div><p className="explore-legal">Read the <Link href="/terms">terms of use</Link> and <Link href="/privacy">privacy notice</Link>. Paper trading is simulated; model output is experimental.</p></section>
+      <SiteFooter mode={demo ? 'demo' : 'live'}/>
     </main>
     {notice ? <div className="toast" role="status"><Check size={15}/>{notice}<button aria-label="Dismiss notification" onClick={() => setNotice('')}><X size={15}/></button></div> : null}
     {selectedTick ? <div className="modal-backdrop" onClick={() => setSelected(null)}><section className="event-modal" role="dialog" aria-modal="true" aria-label="Market event details" onClick={e => e.stopPropagation()}><div className="panel-heading"><h2>Event receipt</h2><button className="icon-button" aria-label="Close event details" onClick={() => setSelected(null)}><X size={18}/></button></div><p>{demo ? 'Synthetic demonstration event. It has no blockchain transaction.' : 'Public chain event. No participant identity is inferred.'}</p><pre>{JSON.stringify(selectedTick, null, 2)}</pre></section></div> : null}
@@ -165,36 +165,4 @@ export default function Dashboard() {
 
 function Stat({ label, value, detail, positive, icon }: { label: string; value: string; detail: string; positive?: boolean; icon: React.ReactNode }) {
   return <article className="stat"><div className="stat-label">{label}{icon}</div><strong>{value}</strong><small className={positive === undefined ? '' : positive ? 'up' : 'down'}>{detail}</small></article>;
-}
-function Science() {
-  return <section className="document-view"><div className="eyebrow"><FlaskConical size={14}/> THE SCIENCE</div><h1>A prediction you can inspect.</h1><p className="document-intro">Tray presents market-derived sensory stimuli to a model trained to predict human fMRI responses. The connection from event to input to output stays visible.</p>
-    <div className="science-grid">{[
-      ['01', 'The stimulus', 'Executed trades become a market-screen video and a factual spoken update. The input is an authored representation of financial information.'],
-      ['02', 'The encoding model', 'Meta TRIBE v2 combines video, audio, and language features to predict an averaged subject’s cortical response. It does not contain a human connectome.'],
-      ['03', 'The displayed response', 'Real results use fsaverage5 surface vertices. The decorative default view is labeled schematic and never substitutes invented neural values.'],
-      ['04', 'The trading experiment', 'Paper decisions are a separate authored policy. Predicted response change can scale exposure; it is not evidence of emotion or trading skill.']
-    ].map(([n, title, body]) => <article className="panel science-card" key={n}><span>{n}</span><h2>{title}</h2><p>{body}</p></article>)}</div>
-    <h2>Timing and uncertainty</h2><p>The released model is noncausal within its supplied context. Tray’s rolling-window adapter supplies only observations known at the cutoff and labels this use experimental. Results become available after preprocessing and inference. Paper decisions can only use results that already existed at their decision time.</p>
-    <p>Market charts and portfolio changes are not validated financial-response tasks in the TRIBE release. More predicted activity does not establish fear, pleasure, consciousness, or the probability of buying.</p>
-    <h2>Research sources</h2><div className="source-links">{[
-      ['Meta TRIBE v2 · code and inference interface', 'https://github.com/facebookresearch/tribev2'],
-      ['TRIBE v2 · research paper', 'https://arxiv.org/abs/2605.04326'],
-      ['Official weights and configuration', 'https://huggingface.co/facebook/tribev2'],
-      ['Pons · official contract source', 'https://github.com/ponsdotdev/ponsfamily']
-    ].map(([label, href]) => <a href={href} key={href} target="_blank" rel="noreferrer">{label}<ExternalLink size={15}/></a>)}</div>
-    <h2>Model permissions</h2><p>TRIBE code and weights are released under CC BY-NC 4.0. This project does not include those weights or grant commercial rights. The operator must establish permission for the intended model use. Token promotion is not automatically noncommercial because an interface is free.</p>
-  </section>;
-}
-function Deployment() {
-  return <section className="document-view"><div className="eyebrow"><Terminal size={14}/> DEPLOYMENT</div><h1>Three services. One observatory.</h1><p className="document-intro">The website runs on Vercel. Durable services watch the chain and perform model inference. No wallet key is required.</p>
-    <div className="science-grid">{[
-      ['01', 'Web application', 'Deploy this repository to Vercel as Next.js. The default demo works without a database, RPC endpoint, or GPU.'],
-      ['02', 'Market service', 'Apply the Postgres migration and run the Node indexer on a persistent host. Configure the new token, chain, start block, and verified protocol contracts.'],
-      ['03', 'Inference worker', 'Run the Python service on a suitable GPU host with an authorized, revision-pinned TRIBE installation. It consumes jobs from Postgres.'],
-      ['04', 'Activate the live view', 'Set TRAY_MODE=live and the database read connection in Vercel. The site reports disconnected services rather than replacing live results with demo data.']
-    ].map(([n, title, body]) => <article className="panel science-card" key={n}><span>{n}</span><h2>{title}</h2><p>{body}</p></article>)}</div>
-    <h2>Agent handoff</h2><p>The downloadable project includes <code>AGENT_HANDOFF.md</code>, <code>docs/DEPLOYMENT.md</code>, <code>docs/SCIENCE.md</code>, the environment template, migrations, tests, and the GPU service. Start with the handoff and the recorded verification results.</p>
-    <pre className="command-block">{'npm ci\nnpm run build\n\n# Persistent market host\nnpm run db:migrate\nnpm run doctor\nnpm run worker'}</pre>
-    <h2>Runtime boundaries</h2><p>Vercel serves the frontend and read-only APIs. It does not host the GPU model or the persistent chain subscription. The paper account is a simulation; this package never signs or submits financial transactions.</p>
-  </section>;
 }

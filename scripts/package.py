@@ -33,13 +33,13 @@ def main():
             if re.search(pattern, content):
                 raise RuntimeError(f"Potential secret in {rel}; archive was not created")
         files.append((rel.as_posix(), content))
-    manifest = {"project": "tray-the-trader", "formatVersion": 1, "files": [
+    manifest = {"project": "tray", "formatVersion": 1, "files": [
         {"path": name, "bytes": len(content), "sha256": hashlib.sha256(content).hexdigest()} for name, content in files]}
     files.append(("SOURCE_MANIFEST.json", json.dumps(manifest, indent=2).encode()))
-    target = ROOT / "dist" / "tray-the-trader.zip"; target.parent.mkdir(exist_ok=True)
+    target = ROOT / "dist" / "tray.zip"; target.parent.mkdir(exist_ok=True)
     with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for name, content in files:
-            item = zipfile.ZipInfo(f"tray-the-trader/{name}", date_time=(2026, 9, 14, 0, 0, 0))
+            item = zipfile.ZipInfo(f"tray/{name}", date_time=(2026, 9, 14, 0, 0, 0))
             item.compress_type = zipfile.ZIP_DEFLATED
             item.external_attr = (0o100755 if name.endswith("bin/uvx") else 0o100644) << 16
             archive.writestr(item, content)
