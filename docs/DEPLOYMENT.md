@@ -42,7 +42,7 @@ Vercel may prefill many names from `.env.example`. Remove unused blank rows. Add
 | `PONS_FACTORY_ADDRESS` | Verified factory that created this token, on this chain |
 | `BLOCK_EXPLORER_URL` | Optional public HTTPS explorer base URL, with no credentials, query or fragment |
 
-For a compatible V3 pool, select `MARKET_PROTOCOL=uniswap-v3` and set `V3_POOL_ADDRESS` instead of the Pons factory. In Pons V2 mode the observer reads the hook and pool manager from the factory and validates deployed bytecode. It follows curve events and the derived V4 pool through graduation. It never reuses another project's token. Verify deployment addresses against the [official Pons contracts](https://github.com/ponsdotdev/ponsfamily).
+For a compatible V3 pool, select `MARKET_PROTOCOL=uniswap-v3` and set `V3_POOL_ADDRESS` instead of the Pons factory. In Pons V2 mode the observer reads the hook and pool manager from the factory and validates deployed bytecode. It follows curve events and the derived V4 pool through graduation. It never reuses another project's token. The adapter was audited against [Pons V2 source revision `cb5748a29e4d3a7af1c4e982baa9ed9194d25a8f`](https://github.com/ponsdotdev/ponsfamily/tree/cb5748a29e4d3a7af1c4e982baa9ed9194d25a8f); separately verify that the selected deployment uses that compatible contract generation.
 
 The browser polls every five seconds, with a short server cache and two confirmation blocks by default. Change `CONFIRMATION_BLOCKS` only with the chain's finality behavior in mind. `RPC_RECENT_BLOCKS` defaults to 60 (maximum 200), and `RPC_MAX_EVENTS` to 100 (maximum 200). This is a bounded recent view, not a complete history. Busy windows display a truncation notice. Curves use the execution ratio from event amounts; V3/V4 use post-swap spot prices. Quote values are not assumed to be USD.
 
@@ -124,7 +124,7 @@ For local development, `compose.yaml` provides a Postgres service. Set a private
 | `RPC_BLOCK_BATCH` | At most 30 blocks per catch-up cycle by default; lower for constrained providers |
 | `REORG_HISTORY_BLOCKS` | 128 rollback checkpoints by default |
 
-Validate the actual deployment's ABI/version and contract relationships against [Pons source](https://github.com/ponsdotdev/ponsfamily). Do not paste a token address from another project. This code does not assume that every token on a Pons webpage uses the same contract generation.
+Validate the actual deployment's ABI/version and contract relationships against [the pinned Pons source](https://github.com/ponsdotdev/ponsfamily/tree/cb5748a29e4d3a7af1c4e982baa9ed9194d25a8f). Do not paste a token address from another project. This code does not assume that every token on a Pons webpage uses the same contract generation.
 
 Run:
 
@@ -196,7 +196,7 @@ The model preparation command downloads only after the explicit enabled/rights c
 
 The Dockerfile constrains the direct Python dependencies and uses the upstream-required `neuralset==0.0.2` and `neuraltrain==0.0.2` through TRIBE. Do not substitute the current NeuroAI main branch: its extractor interfaces have changed. `bin/uvx` routes the upstream WhisperX invocation to version 3.3.4 in an isolated `uv` tool environment. ASR/alignment model downloads and transitive packages are not a fully locked deployment environment in this handoff. After the first successful smoke run, retain the caches, record tool/model file hashes, archive both Python environments' exact package lists and pin your built image digest. Test before upgrading any part of that stack.
 
-`smoke.py --render-only` creates an explicitly synthetic 100-second chart/narration test. Without `--render-only`, it calls the real model and stores its output privately. Neither form writes predictions into the live database. Inspect `stimulus.mp4`, `events.csv`, `prediction.npz` and `smoke-result.json`. Require finite `(time, 20484)` output and preserved upstream starts/durations. Validate the transcript and check that silence or digit-heavy speech has not produced unintended language.
+`smoke.py --render-only` creates an explicitly synthetic 100-second chart/narration test. Without `--render-only`, it calls the real model and stores its output privately. Neither form writes predictions into the live database. Inspect `stimulus.mp4`, `events.csv`, `prediction.npz` and `smoke-result.json`. Require finite `(time, 20484)` output, preserved upstream starts/durations and a matching `eventsHash` for the retained event table. Validate the transcript and check that silence or digit-heavy speech has not produced unintended language.
 
 Then launch:
 

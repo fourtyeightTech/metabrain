@@ -82,6 +82,7 @@ class Adapter:
         events = self.model.get_events_dataframe(video_path=str(out / "stimulus.mp4"))
         # CSV stays on the private artifact volume; it may contain private host paths.
         events.to_csv(out / "events.csv", index=False)
+        events_hash = sha256(out / "events.csv")
         predictions, segments = self.model.predict(events, verbose=False)
         result = summarize(predictions, segments, self.vertex_count)
         np.savez_compressed(out / "prediction.npz", predictions=predictions,
@@ -89,6 +90,7 @@ class Adapter:
                             segment_durations=[float(s.duration) for s in segments])
         manifest = {"upstreamCodeRevision": PINNED_CODE, "weightsRevision": self.provenance["tribeRevision"],
                     "checkpointHash": self.provenance["checkpointHash"], "configHash": self.provenance["configHash"],
+                    "eventsHash": events_hash,
                     "features": {key: {k: v for k, v in value.items() if k != "path"} for key, value in self.provenance["features"].items()},
                     "pythonPackages": {name: importlib.metadata.version(name) for name in ["tribev2", "torch", "neuralset", "neuraltrain", "transformers", "numpy"]},
                     "modelTRSeconds": float(self.model.data.TR), "subjectMode": "upstream average_subjects=True",

@@ -2,6 +2,8 @@
 
 MetaTray uses a dark editorial layout with a prominent interactive cortical viewer. The interface, branding and content belong to this independent project. Scientific attribution identifies the upstream model and its sources.
 
+The flat ASCII wordmark `[tray]_` appears in the header and footer, paired with the `meta` product prefix so the complete name reads as MetaTray. Cool-white type and restrained cyan/periwinkle terminal accents replace the generic brain glyph. A crisp `[t]` terminal mark remains legible in the favicon. The mark deliberately avoids Meta's infinity silhouette and does not imply affiliation.
+
 ## Visual system
 
 | Element | Specification |
@@ -31,7 +33,8 @@ The phone layout stacks the hero, removes the duplicate receipt callout and wrap
 ## Interaction contracts
 
 - Hero tabs support click, keyboard focus and left/right arrow navigation. Only the selected view is mounted.
-- The 3D view uses Three.js and OrbitControls. Drag rotates; the reset control restores the camera. Automatic camera motion has an explicit pause/resume control and respects the system's reduced-motion preference.
+- The 3D view uses Three.js and OrbitControls. Drag rotates; the reset control restores the camera. Automatic camera motion has an explicit pause/resume control and respects the system's reduced-motion preference. Recent confirmed event receipts map deterministically to bounded points on the illustrative cortical field; buy/sell events create distinct teal/amber expanding signal waves, and relative quote value changes their size only within a narrow unit-independent range. A bounded seen-event history prevents an old receipt from replaying as new.
+- If an actual model surface and a current transaction are visible together, a persistent label distinguishes the model-colored fsaverage5 surface from the separately overlaid market-input pulse.
 - Camera motion never generates or modifies model values. The default geometry is labeled illustrative. No model result means no response trace.
 - The stimulus tab explains the input currently represented by the market context. Exact generated inputs belong to their completed job receipts.
 - Receipt exports retain the existing snapshot and prediction schema. A missing model result remains null.

@@ -5,8 +5,9 @@ import { emptyAccount } from '../paper';
 import { describeMarket } from '../stimulus';
 import type { CorticalEpoch, PaperAccount, PaperConfig, PredictionSummary, Snapshot, Tick } from '../types';
 
-export function buildCorticalEpoch(summary: PredictionSummary, input: { ticks?: Tick[] }): CorticalEpoch {
-  const ticks = input.ticks ?? []; const first = ticks[0]; const last = ticks.at(-1);
+export function buildCorticalEpoch(summary: PredictionSummary, input: { start: number; ticks?: Tick[] }): CorticalEpoch {
+  const ticks = (input.ticks ?? []).filter(tick => tick.ts >= input.start);
+  const first = ticks[0]; const last = ticks.at(-1);
   const priceChangePct = first && last ? (last.price / first.price - 1) * 100 : null;
   const observedVolume = ticks.reduce((sum, tick) => sum + tick.quoteAmount, 0);
   const regime = priceChangePct !== null && priceChangePct >= 3 ? 'rally'
@@ -22,7 +23,7 @@ export async function liveSnapshot(): Promise<Snapshot> {
     getState<{ number: number; ts: number }>(db, 'cursor'),
     getState<{ heartbeat: number; message: string; ok: boolean }>(db, 'health'),
     db.query<{ summary: PredictionSummary }>('SELECT summary FROM metatray_predictions ORDER BY available_at DESC LIMIT 1'),
-    db.query<{ summary: PredictionSummary; input: { ticks?: Tick[] } }>('SELECT p.summary,j.input FROM metatray_predictions p JOIN metatray_jobs j ON j.id=p.id ORDER BY p.available_at DESC LIMIT 24'),
+    db.query<{ summary: PredictionSummary; input: { start: number; ticks?: Tick[] } }>('SELECT p.summary,j.input FROM metatray_predictions p JOIN metatray_jobs j ON j.id=p.id ORDER BY p.available_at DESC LIMIT 24'),
     db.query<{ status: string; count: string }>("SELECT status,count(*) FROM metatray_jobs WHERE status IN ('queued','running','failed') GROUP BY status"),
     getState<PaperConfig>(db, 'paperConfig'),
     getState<{ chainId: number; token: string; symbol: string; quoteSymbol: string; confirmationBlocks: number; inferenceEnabled: boolean }>(db, 'market')

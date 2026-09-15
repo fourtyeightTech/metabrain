@@ -97,7 +97,7 @@ Before publishing, the worker locks the job again and verifies lease ownership, 
 | `input.json` | Exact structured market/paper input |
 | `stimulus.mp4`, `stimulus.wav`, `speech.wav` | Actual generated sensory input |
 | `preview.png` | Last rendered market frame |
-| `events.csv` | Actual upstream event/transcript table; may include private host paths |
+| `events.csv` | Actual upstream event/transcript table; may include private host paths; its SHA-256 is retained in the private/public result manifest |
 | `prediction.npz` | Full model array and original segment starts/durations |
 | `manifest.json` | Result metadata, public summary and publication status |
 | `render.log`, `error.txt` when applicable | Private operational diagnostics |

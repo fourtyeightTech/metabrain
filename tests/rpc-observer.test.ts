@@ -106,11 +106,13 @@ test('transaction links only use valid public HTTPS explorer bases and receipt h
   assert.equal(transactionUrl('javascript:alert(1)', hash), null);
   assert.equal(transactionUrl('https://explorer.invalid', 'synthetic'), null);
 });
-test('cortical epochs pair a completed result with its exact market window', () => {
+test('cortical epochs exclude the pre-window seed from market-window statistics', () => {
+  const seed = { id: 'seed', ts: 0, price: 0.25, quoteAmount: 1000, tokenAmount: 4000, side: 'buy' as const,
+    venue: 'uniswap-v3' as const, blockNumber: 0, blockHash: hash, txHash: hash, logIndex: 0, raw: {} };
   const first = { id: 'first', ts: 1, price: 1, quoteAmount: 4, tokenAmount: 4, side: 'buy' as const,
     venue: 'uniswap-v3' as const, blockNumber: 1, blockHash: hash, txHash: hash, logIndex: 0, raw: {} };
   const last = { ...first, id: 'last', ts: 2, price: 1.05, quoteAmount: 6, logIndex: 1 };
-  const result = buildCorticalEpoch(prediction(Date.now()), { ticks: [first, last] });
+  const result = buildCorticalEpoch(prediction(Date.now()), { start: 1, ticks: [seed, first, last] });
   assert.equal(result.regime, 'rally'); assert.equal(result.tradeCount, 2); assert.equal(result.observedVolume, 10);
   assert.ok(result.priceChangePct !== null && Math.abs(result.priceChangePct - 5) < 1e-9);
 });

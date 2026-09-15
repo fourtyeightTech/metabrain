@@ -33,6 +33,10 @@ try {
   await page.goto('http://127.0.0.1:3100', { waitUntil: 'networkidle' });
   await page.getByText('Synthetic market replay', { exact: true }).waitFor();
   await page.locator('.cortex-canvas canvas').waitFor();
+  assert.equal(await page.title(), 'metatray');
+  assert.ok(await page.locator('header img[src*="tray-wordmark"]').count());
+  assert.ok(await page.locator('link[rel="icon"][href*="favicon.svg"]').count());
+  assert.equal(await page.getByRole('link', { name: 'Open view', exact: true }).getAttribute('href'), '/experiment');
   await page.screenshot({ path: new URL('desktop.png', out).pathname, fullPage: true });
   await page.screenshot({ path: new URL('hero.png', out).pathname });
   await page.getByRole('button', { name: 'Pause camera rotation' }).click();
@@ -45,6 +49,12 @@ try {
   await page.locator('.cortex-canvas canvas').waitFor();
   const nav = page.getByRole('navigation', { name: 'Main navigation' });
   assert.equal(await page.locator('tbody tr').count(), 8);
+  const keyboardTrade = page.locator('tbody tr').first().getByRole('button', { name: /^Inspect / });
+  await keyboardTrade.focus();
+  await page.keyboard.press('Space');
+  await page.getByRole('dialog').waitFor();
+  await page.keyboard.press('Escape');
+  await page.getByRole('dialog').waitFor({ state: 'hidden' });
   await page.getByRole('button', { name: 'Pause view' }).click();
   await page.getByRole('button', { name: 'Resume view' }).waitFor();
   await page.locator('tbody tr').first().click();
@@ -89,15 +99,20 @@ try {
   await page.locator('.faq-items details[open]').waitFor();
   for (const width of [320, 768, 1024]) {
     await page.setViewportSize({ width, height: 1000 });
-    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false, `Page overflows at ${width}px`);
+    const layout = await page.evaluate(() => ({ viewport: window.innerWidth, page: document.documentElement.scrollWidth,
+      offenders: [...document.querySelectorAll('body *')].map(element => { const rect = element.getBoundingClientRect(); return {
+        tag: element.tagName, className: typeof element.className === 'string' ? element.className : '', left: rect.left, right: rect.right, width: rect.width
+      }; }).filter(rect => rect.left < -1 || rect.right > window.innerWidth + 1).slice(0, 8) }));
+    assert.equal(layout.page > layout.viewport, false, `Page overflows at ${width}px: ${JSON.stringify(layout.offenders)}`);
   }
-  for (const route of ['about', 'science', 'how-it-works', 'lore', 'deployment', 'terms', 'privacy', 'evidence']) {
+  for (const route of ['experiment', 'about', 'science', 'how-it-works', 'lore', 'deployment', 'terms', 'privacy', 'evidence']) {
     await page.goto(`http://127.0.0.1:3100/${route}`, { waitUntil: 'domcontentloaded' });
     await page.getByRole('heading', { level: 1 }).waitFor();
-    assert.equal(await page.title(), ({ about: 'About', science: 'The science', 'how-it-works': 'How it works', lore: 'The lore', deployment: 'Model setup', terms: 'Terms of use', privacy: 'Privacy', evidence: 'Code & evidence' })[route] + ' | MetaTray');
+    assert.equal(await page.title(), 'metatray');
     assert.ok(await page.locator('.article-body section').count() > 0);
     await page.getByRole('navigation', { name: 'On this page' }).waitFor();
   }
+  assert.ok(await page.locator('a[href*="ponsdotdev/ponsfamily/blob/cb5748a29e4d3a7af1c4e982baa9ed9194d25a8f"]').count() >= 4);
   const health = await (await fetch('http://127.0.0.1:3100/api/health')).json(); assert.equal(health.status, 'demo');
   assert.equal((await fetch('http://127.0.0.1:3100/api/predictions/not-an-id')).status, 400);
   assert.equal((await fetch('http://127.0.0.1:3100/api/mesh')).status, 404);
@@ -146,6 +161,8 @@ try {
   await page.getByRole('button', { name: 'Refresh live feed', exact: true }).click();
   await page.locator('[data-visual-mode="market-input"]').waitFor();
   await page.getByText('LIVE ON-CHAIN', { exact: true }).waitFor();
+  await page.getByText('TX SIGNAL // BUY', { exact: true }).waitFor();
+  await page.getByText('BLOCK 100', { exact: true }).waitFor();
   await page.locator('.incoming-row').waitFor();
   const canvas = await page.locator('.cortex-canvas canvas').elementHandle();
   const firstInput = await page.locator('.cortex-stage').getAttribute('data-input-event');
@@ -185,8 +202,8 @@ try {
   await page.getByText('WebGL is unavailable. The live feed and receipts below still work.').waitFor();
   assert.deepEqual(errors, []);
   const report = { status: 'passed', viewport: ['1440x1100', '390x844', '320x1000', '768x1000', '1024x1000'],
-    checks: ['production render', '3D schematic', 'hero viewer tabs and arrow keys', 'camera rotation and reduced motion', 'FAQ expansion', 'paper policy controls', 'pause/reset', 'event modal and Escape',
-      'chart range', 'data and visual receipt downloads', 'cortical epoch atlas', 'informational routes, titles and navigation', 'mobile overflow', 'API mode boundaries', 'live setup instructions', 'real repository links', 'fixture event updates without canvas remount', 'pause and outage status', 'fixture model surface', 'WebGL fallback', 'event link keyboard access'],
+    checks: ['production render', '3D schematic', 'hero viewer tabs and arrow keys', 'camera rotation and reduced motion', 'FAQ expansion', 'paper policy controls', 'pause/reset', 'native transaction-row keyboard activation', 'event modal and Escape',
+      'chart range', 'data and visual receipt downloads', 'cortical epoch atlas', 'Experiment 001 Open view route', 'informational routes, titles and navigation', 'mobile overflow', 'API mode boundaries', 'live setup instructions', 'real repository links', 'fixture event updates without canvas remount', 'pause and outage status', 'fixture model surface', 'WebGL fallback', 'event link keyboard access'],
     realChainTested: false, realTribeTested: false };
   await writeFile(new URL('report.json', out), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 2));
