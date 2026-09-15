@@ -7,7 +7,7 @@ from pathlib import Path
 
 import numpy as np
 from renderer import sha256
-from result import summarize
+from result import encode_surface_frames, summarize
 
 PINNED_CODE = "af58661791a351a448a489042a28f6c37e1c14b7"
 
@@ -85,9 +85,13 @@ class Adapter:
         events_hash = sha256(out / "events.csv")
         predictions, segments = self.model.predict(events, verbose=False)
         result = summarize(predictions, segments, self.vertex_count)
+        surface_payload, surface_metadata = encode_surface_frames(
+            predictions, segments, self.vertex_count, result["colorLimit"])
+        result["surfaceFrames"] = surface_metadata
         np.savez_compressed(out / "prediction.npz", predictions=predictions,
                             segment_starts=[float(s.start) for s in segments],
                             segment_durations=[float(s.duration) for s in segments])
+        (out / "surface-frames.mtrysf1.gz").write_bytes(surface_payload)
         manifest = {"upstreamCodeRevision": PINNED_CODE, "weightsRevision": self.provenance["tribeRevision"],
                     "checkpointHash": self.provenance["checkpointHash"], "configHash": self.provenance["configHash"],
                     "eventsHash": events_hash,
@@ -99,5 +103,6 @@ class Adapter:
                     "alignmentPolicy": "upstream data alignment retained; no extra hemodynamic shift applied",
                     "signalUnits": "normalized model target units, not spikes or percent BOLD",
                     "colorScale": "fixed symmetric +/-2 model units; saturated for display only",
+                    "surfaceFrames": surface_metadata,
                     "whisperxVersion": "3.3.4; tool environment separate from model environment"}
-        return result, sha256(out / "prediction.npz"), manifest
+        return result, sha256(out / "prediction.npz"), manifest, surface_payload

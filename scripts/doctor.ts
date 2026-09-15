@@ -10,7 +10,8 @@ if (process.env.METATRAY_MODE === 'demo') {
   try {
     const cfg = liveConfig(); paperConfig();
     const db = pool();
-    await db.query("SELECT version FROM metatray_migrations WHERE version='001'");
+    const migration = await db.query("SELECT version FROM metatray_migrations WHERE version='002'");
+    if (!migration.rows.length) throw new Error('Database migration 002 is not applied');
     const client = makeClient(cfg) as PublicClient;
     const market = await discoverMarket(client, cfg);
     const head = await client.getBlockNumber();

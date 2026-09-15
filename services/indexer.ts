@@ -7,6 +7,8 @@ import { CURVE, decodeSwap, discoverMarket, fetchLogs, makeClient } from '../src
 import { applyBlock, queueInference, rewind } from '../src/lib/server/store';
 
 const cfg = liveConfig(); const paper = paperConfig(); const db = pool();
+if (!(await db.query("SELECT version FROM metatray_migrations WHERE version='002'")).rows.length)
+  throw new Error('Database migration 002 is required before starting the indexer');
 const client = makeClient(cfg) as PublicClient;
 const market = await discoverMarket(client, cfg);
 const lock = await db.connect();

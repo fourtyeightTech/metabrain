@@ -6,7 +6,7 @@ Application source for [fourtyeightTech/metabrain](https://github.com/fourtyeigh
 
 MetaTray turns observed token trades into a market-screen video, trade tones and a factual spoken update. An optional, separately hosted TRIBE service predicts cortical responses to that authored experience. The website displays the output alongside the market and a simulated portfolio.
 
-The website reads real recent swaps directly from RPC on Vercel once the new token, chain and factory/pool are configured. Missing configuration produces a visible setup panel. Persistent history, paper decisions and model jobs use the separate Postgres/indexer path. Actual cortical output also requires a compatible GPU service, model access and permission for the intended use. No predictions or trading returns from the real model are claimed by this package.
+The website reads real recent swaps directly from RPC on Vercel once the new token, chain and factory/pool are configured. Missing configuration produces a visible setup panel. Persistent history, paper decisions and model jobs use the separate Postgres/indexer path. Actual cortical output also requires Postgres, the persistent indexer, a compatible GPU worker, model access and permission for the intended use. No predictions or trading returns from the real model are claimed by this package.
 
 MetaTray’s visual identity uses a near-black canvas, a crisp cyan-and-white `[tray]_` terminal mark, large white typography, monospace controls, fine layout rails and a split hero containing the interactive 3D cortex. Every route uses the exact browser-tab title `metatray`. MetaTray has its own branding, content and original UI implementation. Read [DESIGN.md](docs/DESIGN.md) for the design specification.
 
@@ -44,9 +44,18 @@ MARKET_PROTOCOL=pons-v2
 PONS_FACTORY_ADDRESS=<verified factory on that chain>
 ```
 
-For a compatible V3 market, use `MARKET_PROTOCOL=uniswap-v3` and `V3_POOL_ADDRESS` instead of the factory. `BLOCK_EXPLORER_URL` is optional and enables transaction links. Do not use `NEXT_PUBLIC_` for credentials. Remove unused blank import rows; RPC mode needs no database, Hugging Face token or model weights. See [DEPLOYMENT.md](docs/DEPLOYMENT.md) for limits and checks.
+For a compatible V3 market, use `MARKET_PROTOCOL=uniswap-v3` and `V3_POOL_ADDRESS` instead of the factory. `BLOCK_EXPLORER_URL` is optional and enables transaction links. Do not use `NEXT_PUBLIC_` for credentials. Remove unused blank import rows; RPC mode needs no database, Hugging Face token or model weights. The four connection values shown by the setup panel—`RPC_HTTP_URL`, `CHAIN_ID`, `TOKEN_ADDRESS` and `PONS_FACTORY_ADDRESS`—enable the live market feed only. They cannot produce TRIBE output. See [DEPLOYMENT.md](docs/DEPLOYMENT.md) for limits and checks.
 
-The live console shows decoded swaps, block numbers, transaction receipts, connection age and each pipeline stage. Real buys/sells drive labelled input pulses on the 3D schematic. These pulses are **an illustrative market mapping, not Meta predictions**. Actual model values color the anatomical surface only after the separately hosted GPU worker publishes a valid result. `/evidence` links directly to [MetaTray's adapter](services/tribe/adapter.py), [Meta's pinned inference code](https://github.com/facebookresearch/tribev2/blob/af58661791a351a448a489042a28f6c37e1c14b7/tribev2/demo_utils.py), the [audited Pons V2 source](https://github.com/ponsdotdev/ponsfamily/tree/cb5748a29e4d3a7af1c4e982baa9ed9194d25a8f) and MetaTray's chain decoder.
+The live console shows decoded swaps, block numbers, transaction receipts, connection age and each pipeline stage. Real buys/sells drive labelled input pulses outside the 3D cortical surface. These pulses are **an illustrative market-input mapping, not Meta predictions**. The model layer appears only after the separately hosted GPU worker publishes a valid completed epoch. It replays the genuine time-ordered fsaverage5 model rows on 20,484 vertices at the model's one-second output grid. That replay is delayed model output, not an instantaneous or causal response to the newest swap. `/evidence` links directly to [MetaTray's adapter](services/tribe/adapter.py), [Meta's pinned inference code](https://github.com/facebookresearch/tribev2/blob/af58661791a351a448a489042a28f6c37e1c14b7/tribev2/demo_utils.py), the [audited Pons V2 source](https://github.com/ponsdotdev/ponsfamily/tree/cb5748a29e4d3a7af1c4e982baa9ed9194d25a8f) and MetaTray's chain decoder.
+
+The viewer therefore has two independent clocks and two independent visual layers:
+
+| Layer | Data source | Timing and meaning |
+| --- | --- | --- |
+| Market input | Confirmed Pons/V3/V4 receipts from the selected chain | New receipts can pulse as the browser polls; pulse position, size and color are authored presentation choices |
+| Cortical output | Latest completed TRIBE prediction published by the GPU worker | Replays an already completed model epoch; temporal interpolation is visual only and never creates additional model samples |
+
+TRIBE's feature input is sampled at 2 Hz and its cortical output grid is 1 Hz. The upstream alignment includes an approximately five-second hemodynamic offset, and the configured experiment uses up to the upstream 100-second model window. These are fMRI-model timescales, not millisecond neuronal activity.
 
 Direct RPC mode re-reads up to 200 recent blocks and displays up to 200 events (defaults: 60/100); it does not persist a paper ledger or run inference. For those features, deploy Postgres and the persistent indexer, then select `METATRAY_FEED=indexed` and supply `DATABASE_READ_URL` on Vercel. Add the optional GPU worker as described in the deployment guide. The frontend polls RPC snapshots every five seconds and indexed snapshots every two seconds, in addition to the configured block confirmation delay.
 
@@ -57,7 +66,7 @@ Set `METATRAY_PUBLIC_CONTACT_URL` to a public HTTPS page that offers an appropri
 | Component | Behavior |
 | --- | --- |
 | Observatory | Split hero with cortex/stimulus/receipt tabs, optional camera rotation, responsive dashboard, market chart, activity table and paper account |
-| Cortical atlas | Up to 24 completed TRIBE epochs with their exact market-window regime, trade count, quote volume, price change and model-response magnitude; any epoch can reopen its full surface |
+| Cortical atlas | Up to 24 completed TRIBE epochs with their exact market-window regime, trade count, quote volume, price change and model-response magnitude; any epoch can reopen its genuine temporal surface replay |
 | Shareable receipts | JSON session receipt, 1200 × 630 visual market/model receipt, and direct links to completed prediction IDs |
 | Live input stream | Read-only RPC discovery, confirmed recent swaps, block/hash receipts, missing-setting and outage states, trade-driven illustrative 3D pulses |
 | Demo | Reproducible synthetic prices; working paper policies; clearly labeled schematic with no invented cortical output |
@@ -65,16 +74,16 @@ Set `METATRAY_PUBLIC_CONTACT_URL` to a public HTTPS page that offers an appropri
 | V3 adapter | Explicit pool selection for a compatible existing market |
 | Chain worker | Mined-log ingestion, bounded catch-up, optional WebSocket notifications, confirmation delay, canonical parent checks and reorg rollback |
 | Paper engine | Cash/units/cost basis, simulated fees/slippage, realized P/L, exposure target, cooldown, three policies |
-| Model worker | Durable leases, real audiovisual rendering, official TRIBE inference call, output validation, fsaverage5 geometry, prediction receipts |
+| Model worker | Durable leases, real audiovisual rendering, official TRIBE inference call, output validation, fsaverage5 geometry, temporal surface frames and prediction receipts |
 | Handoff | Vercel configuration, Dockerfiles, Compose, SQL migration, CI, tests, operator smoke test and detailed documentation |
 
 There is no token contract, wallet connection, private-key field or order-submission path. The application observes your independently deployed token. It does not buy tokens, alter supply, collect fees or issue rewards.
 
 ## Scientific meaning
 
-TRIBE v2 is an encoding model for predicted fMRI responses to sensory stimuli. Its public inference interface returns an averaged-subject response on a cortical surface. It does not provide a human connectome, consciousness, emotions, price forecasts or a validated trading policy. [Official repository](https://github.com/facebookresearch/tribev2)
+TRIBE v2 is an encoding model for predicted fMRI responses to sensory stimuli. Its public inference interface returns an averaged-subject response on an fsaverage5 cortical surface with 20,484 vertices. It does not provide a human connectome, consciousness, emotions, millisecond neuron activity, price forecasts or a validated trading policy. [Pinned upstream repository](https://github.com/facebookresearch/tribev2/tree/af58661791a351a448a489042a28f6c37e1c14b7)
 
-MetaTray's proposed market experiment is an extension outside the release's demonstrated financial validation. Read [SCIENCE.md](docs/SCIENCE.md) before describing the project publicly. The released TRIBE code and weights are CC BY-NC 4.0; a token-related commercial deployment needs a suitable rights basis. This ZIP contains original integration code and references, not TRIBE weights or a commercial license.
+MetaTray's proposed market experiment is an extension outside the release's demonstrated financial validation. Read [SCIENCE.md](docs/SCIENCE.md) before describing the project publicly. The released TRIBE code and weights are CC BY-NC 4.0. Token promotion or another commercial use is plausibly outside that license and must not be enabled without separate permission and legal review. This repository contains original integration code and references, not TRIBE weights, permission or a commercial license.
 
 ## Start the deployment handoff here
 

@@ -1,0 +1,13 @@
+{
+  "format": "metatray-surface-int16-le",
+  "version": 1,
+  "compression": "gzip",
+  "payloadBase64": "H4sIAAAAAAAC//MNCYoMdjMwZGRgZFBgYGBggmIgcIBQDfZQNpB2sGcQALIVGBsANDA03TgAAAA=",
+  "sha256": "e22186f3fd49b1246caef67b436cc1cf85f69ff264ea216f94cf4a21ab0abbdb",
+  "frameCount": 2,
+  "vertexCount": 2,
+  "colorLimit": 2,
+  "starts": [1, 2],
+  "durations": [0.5, 0.75],
+  "frames": [[0.25000763, 1.00003052], [0.50001526, -2]]
+}

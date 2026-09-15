@@ -14,7 +14,9 @@ flowchart TD
   DB --> Web["Vercel read APIs and dashboard"]
 ```
 
-The public application polls server snapshots every five seconds in direct RPC mode or every two seconds in indexed mode while its tab is visible and the view is not paused. `METATRAY_FEED=rpc` selects bounded recent observation without Postgres; `METATRAY_FEED=indexed` selects persistent history and model results. Missing configuration produces a structured setup snapshot with empty real-event data; synthetic replay requires `METATRAY_MODE=demo`. A WebSocket, when configured, wakes the indexer on new blocks; HTTP polling and log catch-up remain the source of recoverable event history. Browser polling never queries a private RPC directly.
+The public application polls server snapshots every five seconds in direct RPC mode or every two seconds in indexed mode while its tab is visible and the view is not paused. `METATRAY_FEED=rpc` selects bounded recent observation without Postgres; `METATRAY_FEED=indexed` selects persistent history and completed model results. Missing configuration produces a structured setup snapshot with empty real-event data; synthetic replay requires `METATRAY_MODE=demo`. A WebSocket, when configured, wakes the indexer on new blocks; HTTP polling and log catch-up remain the source of recoverable event history. Browser polling never queries a private RPC directly.
+
+Direct RPC and cortical inference are deliberately different pipelines. `RPC_HTTP_URL`, `CHAIN_ID`, `TOKEN_ADDRESS` and `PONS_FACTORY_ADDRESS` are sufficient only for Pons market observation when the live/RPC mode and protocol defaults are selected. They do not queue inference or manufacture cortical values. The complete cortical path is chain → persistent indexer → Postgres job → authorized GPU worker → Postgres result and surface frames → public read API.
 
 ## Repository map
 
@@ -22,7 +24,7 @@ The public application polls server snapshots every five seconds in direct RPC m
 | --- | --- |
 | `src/app/` | Next.js layout, routes, styles, error/not-found views |
 | `src/components/dashboard.tsx` | Market/account UI, policy controls, receipts, science and deployment pages |
-| `src/components/cortex.tsx` | Three.js schematic or actual fsaverage5 prediction rendering |
+| `src/components/cortex.tsx` | Three.js schematic or actual fsaverage5 temporal prediction rendering |
 | `src/components/feed-console.tsx` | Connection age, chain window, decoded swap receipts, pipeline stages and repository evidence links |
 | `src/components/cortical-atlas.tsx` | Completed-result history paired with summary statistics from each immutable job input |
 | `src/lib/server/rpc-observer.ts` | Read-only confirmed recent window, factory discovery, canonical block checks, bounded requests and short cache |
@@ -33,6 +35,8 @@ The public application polls server snapshots every five seconds in direct RPC m
 | `src/lib/demo.ts` | Deterministic synthetic replay, entirely separate from model output |
 | `src/lib/stimulus.ts` | Factual input narration |
 | `src/lib/types.ts` | Shared event, account, prediction and snapshot contracts |
+| `src/lib/surface-frames.ts` | Validation and decoding of compact, display-only temporal surface frames |
+| `src/lib/server/surface.ts` | Integrity checks and read access for stored surface-frame payloads |
 | `src/lib/server/chain.ts` | Protocol ABIs, deployment discovery, swap decoding and price normalization |
 | `src/lib/server/store.ts` | Atomic block application, queue creation and canonical rewind |
 | `src/lib/server/db.ts` | Private database connections and transaction helpers |
@@ -46,6 +50,7 @@ The public application polls server snapshots every five seconds in direct RPC m
 | `services/tribe/prepare_models.py` | Explicit download of authorized immutable model snapshots |
 | `services/tribe/smoke.py` | Operator render-only or real-GPU smoke test; no public publication |
 | `db/001_initial.sql` | Initial Postgres migration |
+| `db/002_surface_frames.sql` | Cascading, bounded storage for completed temporal surface payloads |
 | `scripts/` | Migration, doctor, browser check and deterministic source packaging |
 | `tests/`, `services/tribe/tests/` | Accounting, event, PostgreSQL and scientific-contract tests |
 
@@ -98,11 +103,16 @@ Before publishing, the worker locks the job again and verifies lease ownership, 
 | `stimulus.mp4`, `stimulus.wav`, `speech.wav` | Actual generated sensory input |
 | `preview.png` | Last rendered market frame |
 | `events.csv` | Actual upstream event/transcript table; may include private host paths; its SHA-256 is retained in the private/public result manifest |
-| `prediction.npz` | Full model array and original segment starts/durations |
+| `prediction.npz` | Authoritative full-precision model array and original segment starts/durations |
+| `surface-frames.mtrysf1.gz` | Compact quantized copy of every genuine ordered model row for browser display |
 | `manifest.json` | Result metadata, public summary and publication status |
 | `render.log`, `error.txt` when applicable | Private operational diagnostics |
 
-The public result contains the last surface frame, descriptive trace, upstream media-time offsets, model/checkpoint revisions and hashes, input cutoff and publication timestamp. Hashes attest correspondence between retained artifacts; they are not cryptographic proof that a trusted GPU executed the model. There is no signed attestation or on-chain anchoring in this version.
+The public JSON result contains the final surface row for compatibility, descriptive trace, upstream media-time offsets, temporal-surface metadata, model/checkpoint revisions and hashes, input cutoff and publication timestamp. A separate database row stores every genuine ordered surface row as a bounded, gzip-compressed, fixed-scale, signed-integer display payload. The payload preserves upstream starts and durations and is deleted automatically if its prediction is removed during a reorg. The authoritative scientific artifact remains the private floating-point `prediction.npz`; browser quantization and interpolation must not be used for analysis or paper decisions.
+
+The cortical dimensions and timing are model contracts, not UI refresh rates. Each actual frame contains 20,484 fsaverage5 vertices. Feature input is 2 Hz, output is on a 1 Hz grid, upstream alignment includes an approximately five-second hemodynamic offset, and the default full experiment supplies a 100-second context. The browser may visually interpolate two neighboring genuine frames while replaying the latest completed epoch. That interpolation is never stored as inference output. Live receipt pulses remain a separate market-input layer outside the cortical surface.
+
+Hashes attest correspondence between retained artifacts; they are not cryptographic proof that a trusted GPU executed the model. There is no signed attestation or on-chain anchoring in this version.
 
 The Node input hash fingerprints the JSON serialized at queue time; the Python input-file hash fingerprints the retained formatted JSON file. They are deliberately named differently and should not be expected to match byte-for-byte. The stimulus hash is SHA-256 of the final video; output hash is SHA-256 of the retained NPZ.
 
@@ -113,6 +123,7 @@ The Node input hash fingerprints the JSON serialized at queue time; the Python i
 | `GET /api/snapshot` | Demo or live market/account/model summary; live unavailable store returns 503 |
 | `GET /api/snapshot?step=180&policy=observer` | Demo controls only; never changes a live account |
 | `GET /api/predictions/{uuid}` | Actual stored result; 404 for absent/orphaned results or demo mode |
+| `GET /api/predictions/{uuid}/surface` | Integrity-checked temporal surface payload for that completed result; 404 when unavailable/orphaned and never synthesized |
 | `GET /api/mesh` | Stored fsaverage5 geometry in live mode; 404 until prepared |
 | `GET /api/health` | Demo identification, or database/indexer liveness; not a GPU accuracy check |
 

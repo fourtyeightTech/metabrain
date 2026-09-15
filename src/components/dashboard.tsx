@@ -7,9 +7,11 @@ import { CorticalAtlas } from './cortical-atlas';
 import { META_REPOSITORY, METATRAY_REPOSITORY, transactionUrl } from '@/lib/sources';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Activity, ArrowDownLeft, ArrowUpRight, ArrowRight, AudioLines, BookOpen, BrainCircuit, Check, ChevronRight, CircleDot,
-  Download, ImageDown, Link as LinkIcon, Pause, Play, Radio, RotateCcw, Wallet, X } from 'lucide-react';
+  Database, Download, ImageDown, Link as LinkIcon, Pause, Play, Radio, RotateCcw, Wallet, X } from 'lucide-react';
 import { PriceChart, ResponseTrace } from './chart';
 import { equity } from '@/lib/paper';
+import { isRecentMarketSignal } from '@/lib/cortical-signal';
+import { decodeSurfaceFrames, type DecodedSurfaceFrames } from '@/lib/surface-frames';
 import type { MeshData, Policy, PredictionResult, Snapshot } from '@/lib/types';
 
 const Cortex = dynamic(() => import('./cortex'), { ssr: false, loading: () => <div className="cortex-loading">Preparing the cortical view…</div> });
@@ -23,6 +25,8 @@ export default function Dashboard() {
   const [paused, setPaused] = useState(false); const [step, setStep] = useState(180);
   const [policy, setPolicy] = useState<Policy>('momentum');
   const [result, setResult] = useState<PredictionResult | null>(null); const [mesh, setMesh] = useState<MeshData | null>(null);
+  const [surface, setSurface] = useState<DecodedSurfaceFrames | null>(null);
+  const [surfaceState, setSurfaceState] = useState<'idle' | 'loading' | 'replay' | 'static' | 'invalid'>('idle');
   const [selectedPredictionId, setSelectedPredictionId] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null); const [notice, setNotice] = useState('');
   const [heroView, setHeroView] = useState<'cortex' | 'stimulus' | 'receipt'>('cortex');
@@ -52,15 +56,37 @@ export default function Dashboard() {
   }, [paused, refresh, pollMs]);
   const predictionId = selectedPredictionId ?? snapshot?.prediction?.id;
   useEffect(() => {
-    setResult(null);
-    if (!predictionId) { setResult(null); return; }
+    setResult(null); setSurface(null); setSurfaceState(predictionId ? 'loading' : 'idle');
+    if (!predictionId) return;
     const controller = new AbortController();
-    Promise.all([
-      fetch(`/api/predictions/${predictionId}`, { signal: controller.signal }).then(async r => { if (!r.ok) throw new Error('Prediction no longer available'); return r.json(); }),
-      fetch('/api/mesh', { signal: controller.signal }).then(async r => { if (!r.ok) throw new Error('Anatomical mesh unavailable'); return r.json(); })
-    ]).then(([p, m]) => { setResult(p); setMesh(m); }).catch(e => {
-      if (e.name !== 'AbortError') { setResult(null); setNotice(e.message); }
-    });
+    void (async () => {
+      try {
+        const [predictionResponse, meshResponse] = await Promise.all([
+          fetch(`/api/predictions/${predictionId}`, { cache: 'no-store', signal: controller.signal }),
+          fetch('/api/mesh', { cache: 'no-store', signal: controller.signal })
+        ]);
+        if (!predictionResponse.ok) throw new Error('Prediction no longer available');
+        if (!meshResponse.ok) throw new Error('Anatomical mesh unavailable');
+        const prediction = await predictionResponse.json() as PredictionResult;
+        const anatomicalMesh = await meshResponse.json() as MeshData;
+        setResult(prediction); setMesh(anatomicalMesh); setSurfaceState('static');
+        if (!prediction.surfaceFrames) return;
+        try {
+          const response = await fetch(`/api/predictions/${predictionId}/surface`, { cache: 'no-store', signal: controller.signal });
+          if (!response.ok) throw new Error(response.status === 404 ? 'Temporal replay is unavailable for this result' : 'Temporal replay service unavailable');
+          const decoded = decodeSurfaceFrames(await response.arrayBuffer(), prediction.surfaceFrames);
+          setSurface(decoded); setSurfaceState('replay');
+        } catch (surfaceError) {
+          if (surfaceError instanceof DOMException && surfaceError.name === 'AbortError') return;
+          setSurface(null);
+          setSurfaceState(surfaceError instanceof Error && /unavailable/.test(surfaceError.message) ? 'static' : 'invalid');
+        }
+      } catch (loadError) {
+        if (loadError instanceof DOMException && loadError.name === 'AbortError') return;
+        setResult(null); setMesh(null); setSurface(null); setSurfaceState('idle');
+        setNotice(loadError instanceof Error ? loadError.message : 'Prediction unavailable');
+      }
+    })();
     return () => controller.abort();
   }, [predictionId]);
   useEffect(() => {
@@ -129,13 +155,16 @@ export default function Dashboard() {
   const ticks = snapshot?.ticks ?? []; const volume = ticks.reduce((sum, t) => sum + t.quoteAmount, 0);
   const buyVolume = ticks.filter(t => t.side === 'buy').reduce((sum, t) => sum + t.quoteAmount, 0);
   const quote = snapshot?.quoteSymbol ?? 'QUOTE'; const demo = snapshot?.mode === 'demo';
-  const liveInput = !demo && !!snapshot?.connected && !snapshot.stale && !error && !paused && !!last?.txHash;
+  const liveInput = !demo && !!snapshot?.connected && !snapshot.stale && !error && !paused && isRecentMarketSignal(last, snapshot?.now);
   const activePolicy = snapshot?.paperConfig.policy ?? policy;
   const selectedTick = ticks.find(t => t.id === selected);
   const openObservatory = () => {
-    requestAnimationFrame(() => document.getElementById('observatory')?.scrollIntoView({
-      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'
-    }));
+    requestAnimationFrame(() => {
+      document.getElementById('observatory')?.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'
+      });
+      document.getElementById('observatory-title')?.focus({ preventScroll: true });
+    });
   };
   return <div className="site-root">
     <a href="#main-content" className="skip-link">Skip to content</a>
@@ -154,21 +183,21 @@ export default function Dashboard() {
           </div>
           <div className="hero-product">
             <article className="instrument-panel" aria-label="Interactive cortical observatory">
-              <div className="instrument-heading"><div className="instrument-tabs" role="tablist" aria-label="Cortical viewer tabs">{(['cortex', 'stimulus', 'receipt'] as const).map(v => <button key={v} id={`tab-${v}`} role="tab" aria-selected={heroView === v} aria-controls={`panel-${v}`} tabIndex={heroView === v ? 0 : -1} onClick={() => setHeroView(v)} onKeyDown={e => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); const views = ['cortex', 'stimulus', 'receipt'] as const; const next = views[(views.indexOf(v) + (e.key === 'ArrowRight' ? 1 : 2)) % 3]; setHeroView(next); requestAnimationFrame(() => document.getElementById(`tab-${next}`)?.focus()); } }}>{v === 'cortex' ? '3D cortex' : v === 'stimulus' ? 'Stimulus' : 'Receipt'}</button>)}</div><span className={`small-tag ${modelFresh ? 'mint' : ''}`}>{result ? modelFresh ? 'MODEL OUTPUT' : 'DELAYED OUTPUT' : liveInput ? 'MARKET INPUT' : 'NO PREDICTION'}</span></div>
-              <div id={`panel-${heroView}`} className="instrument-body" role="tabpanel" aria-labelledby={`tab-${heroView}`}>
-                {heroView === 'cortex' ? <Cortex result={result} mesh={mesh} tick={last} ticks={ticks.slice(-8)} quote={quote} liveInput={liveInput}/> : heroView === 'stimulus' ? <div className="hero-stimulus"><span className="eyebrow"><AudioLines size={14}/> THE SENSORY INPUT</span><h2>What the model receives.</h2><p>{snapshot?.stimulus.text ?? 'Waiting for market observations…'}</p><div className="stimulus-format"><span>01 / Market-screen video</span><span>02 / Trade tones + spoken context</span></div><small>{demo ? 'Input preview. No model inference in demo mode.' : 'Preview of current context. Exact model input is retained in each job receipt.'}</small></div> : <div className="hero-receipt"><span className="eyebrow"><BookOpen size={14}/> A RESULT YOU CAN TRACE</span><h2>The prediction receipt.</h2><dl><div><dt>Market source</dt><dd>{demo ? 'Synthetic replay' : 'On-chain observations'}</dd></div><div><dt>Model result</dt><dd>{result ? 'TRIBE v2' : 'Awaiting model service'}</dd></div><div><dt>Input age</dt><dd>{predictionAge !== null ? `${predictionAge} seconds` : 'No result yet'}</dd></div><div><dt>Model revision</dt><dd>{result ? result.modelRevision.slice(0, 16) : 'Not connected'}</dd></div></dl><button className="text-button" onClick={exportSession} disabled={!snapshot}>Download session receipt <Download size={14}/></button><small>{result ? 'Full provenance and hashes are included in the export.' : 'The model has not produced a result for this session.'}</small></div>}
+              <div className="instrument-heading"><div className="instrument-tabs" role="tablist" aria-label="Cortical viewer tabs">{(['cortex', 'stimulus', 'receipt'] as const).map(v => <button key={v} id={`tab-${v}`} role="tab" aria-selected={heroView === v} aria-controls="instrument-active-panel" tabIndex={heroView === v ? 0 : -1} onClick={() => setHeroView(v)} onKeyDown={e => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === 'Home' || e.key === 'End') { e.preventDefault(); const views = ['cortex', 'stimulus', 'receipt'] as const; const next = e.key === 'Home' ? views[0] : e.key === 'End' ? views[2] : views[(views.indexOf(v) + (e.key === 'ArrowRight' ? 1 : 2)) % 3]; setHeroView(next); requestAnimationFrame(() => document.getElementById(`tab-${next}`)?.focus()); } }}>{v === 'cortex' ? '3D cortex' : v === 'stimulus' ? 'Stimulus' : 'Receipt'}</button>)}</div><span className={`small-tag ${modelFresh ? 'mint' : ''}`}>{result ? !modelFresh ? 'DELAYED OUTPUT' : surfaceState === 'replay' ? 'MODEL REPLAY' : 'MODEL OUTPUT' : liveInput ? 'MARKET INPUT' : 'NO PREDICTION'}</span></div>
+              <div id="instrument-active-panel" className="instrument-body" role="tabpanel" aria-labelledby={`tab-${heroView}`}>
+                {heroView === 'cortex' ? <Cortex result={result} mesh={mesh} surface={surface} tick={last} ticks={ticks.slice(-8)} quote={quote} liveInput={liveInput}/> : heroView === 'stimulus' ? <div className="hero-stimulus"><span className="eyebrow"><AudioLines size={14}/> THE SENSORY INPUT</span><h2>What the model receives.</h2><p>{snapshot?.stimulus.text ?? 'Waiting for market observations…'}</p><div className="stimulus-format"><span>01 / Market-screen video</span><span>02 / Trade tones + spoken context</span></div><small>{demo ? 'Input preview. No model inference in demo mode.' : 'Preview of current context. Exact model input is retained in each job receipt.'}</small></div> : <div className="hero-receipt"><span className="eyebrow"><BookOpen size={14}/> A RESULT YOU CAN TRACE</span><h2>The prediction receipt.</h2><dl><div><dt>Market source</dt><dd>{demo ? 'Synthetic replay' : 'On-chain observations'}</dd></div><div><dt>Model result</dt><dd>{result ? 'TRIBE v2' : 'Awaiting model service'}</dd></div><div><dt>Surface</dt><dd>{surfaceState === 'replay' ? `${surface?.frameCount} authentic frames` : result ? surfaceState === 'invalid' ? 'Final frame · replay invalid' : 'Final authentic frame' : 'Not available'}</dd></div><div><dt>Input age</dt><dd>{predictionAge !== null ? `${predictionAge} seconds` : 'No result yet'}</dd></div><div><dt>Model revision</dt><dd>{result ? result.modelRevision.slice(0, 16) : 'Not connected'}</dd></div></dl><button className="text-button" onClick={exportSession} disabled={!snapshot}>Download session receipt <Download size={14}/></button><small>{result ? 'Full provenance and hashes are included in the export.' : 'The model has not produced a result for this session.'}</small></div>}
               </div>
               <div className="cortex-caption"><div><span className="small-square"/>{result ? 'Predicted fMRI response · averaged subject' : liveInput ? 'Real trade pulses · illustrative mapping, not Meta output' : 'Illustrative geometry · waiting for a live connection'}</div><span>TRIBE v2</span></div>
               <div className="response-footer"><div><span className="label">RESPONSE TRACE</span><ResponseTrace values={result?.responseTrace}/></div><div className="response-age"><span className="label">INPUT AGE</span><strong>{predictionAge !== null ? `${predictionAge}s` : '—'}</strong><small>{result ? `${(result.latencyMs / 1000).toFixed(1)}s processing` : 'No samples yet'}</small></div></div>
-              <div className="model-status-line"><span>{snapshot?.inferenceStatus ?? 'Waiting for service status'}</span><span>{snapshot?.jobs.running ?? 0} running · {snapshot?.jobs.queued ?? 0} queued{snapshot?.jobs.failed ? ` · ${snapshot.jobs.failed} failed` : ''}</span></div>
+              <div className="model-status-line"><span>{result ? surfaceState === 'replay' ? `${surface?.frameCount ?? result.sampleCount} published TRIBE frames loaded` : surfaceState === 'invalid' ? 'Published final frame loaded; temporal payload rejected' : 'Published final TRIBE frame loaded' : snapshot?.inferenceStatus ?? 'Waiting for service status'}</span><span>{snapshot?.jobs.running ?? 0} running · {snapshot?.jobs.queued ?? 0} queued{snapshot?.jobs.failed ? ` · ${snapshot.jobs.failed} failed` : ''}</span></div>
             </article>
             <div className="event-preview"><div className="event-preview-heading"><span><Radio size={13}/> Market events</span><span>{demo ? 'SYNTHETIC REPLAY' : 'ON-CHAIN FEED'}</span></div>{ticks.slice(-2).reverse().map(t => <button key={t.id} onClick={() => setSelected(t.id)} className="preview-event"><span className={`trade-side ${t.side}`}>{t.side === 'buy' ? <ArrowDownLeft size={12}/> : <ArrowUpRight size={12}/>} {t.side.toUpperCase()}</span><span>{number(t.quoteAmount)} <small>{quote}</small></span><span>{new Date(t.ts).toLocaleTimeString('en-GB')}</span><ChevronRight size={13}/></button>)}{!ticks.length ? <p>Waiting for observed trades.</p> : null}</div>
           </div>
         </section>
         <FeedConsole snapshot={snapshot} error={error} paused={paused} receivedAt={receivedAt} onRefresh={() => void refresh()} onSelect={setSelected}/>
-        <div className="research-strip"><p>Market data meets a model of human response.</p><div><span><Radio size={22}/><b>Pons</b><small>MARKET ADAPTER</small></span><span><BrainCircuit size={25}/><b>Meta TRIBE v2</b><small>MODEL INTEGRATION</small></span><span><Wallet size={22}/><b>Paper only</b><small>TRADING MODE</small></span></div></div>
+        <div className="research-strip"><p>Market data meets a model of human response.</p><div><span><Database size={22} aria-hidden="true"/><b>Pons</b><small>PROTOCOL SOURCE</small></span><span><BrainCircuit size={22} aria-hidden="true"/><b>Meta TRIBE v2</b><small>UPSTREAM RESEARCH</small></span><span><Wallet size={22} aria-hidden="true"/><b>Paper only</b><small>TRADING MODE</small></span></div></div>
         <section className="lore-sequence" aria-labelledby="lore-sequence-title"><div className="lore-sequence-heading"><span className="section-kicker">[ The first on-chain cortical chronicle ]</span><h2 id="lore-sequence-title">The chain writes the stimulus.</h2><p>Live market input now. Asynchronous model output next. A verifiable experimental record over time.</p></div><div className="lore-steps"><article><span>01 · THE PULSE</span><Radio size={22}/><h3>A confirmed trade enters.</h3><p>The immediate 3D pulse identifies a real market input and carries its transaction receipt.</p></article><article><span>02 · THE EPOCH</span><AudioLines size={22}/><h3>The window becomes experience.</h3><p>Chart motion, trade tones and factual narration form the bounded input to the model.</p></article><article><span>03 · THE CHRONICLE</span><BrainCircuit size={22}/><h3>The Cortical Echo is archived.</h3><p>A validated surface joins the history with its stimulus, model and output hashes.</p></article></div><Link href="/lore">Enter the complete lore <ArrowUpRight size={14}/></Link></section>
-        <section className="observatory-intro" id="observatory"><span className="section-kicker">[ Observatory ]</span><h2>Follow the experiment.</h2><p>The market, the sensory input, and MetaTray’s paper decisions.</p><div className="observatory-actions"><button className="secondary-button" onClick={exportSession} disabled={!snapshot}><Download size={14}/> Data receipt</button><button className="secondary-button" onClick={exportVisualReceipt} disabled={!snapshot}><ImageDown size={14}/> Visual receipt</button><button className="secondary-button" onClick={() => void copyPredictionLink()} disabled={!result}><LinkIcon size={14}/> Copy result link</button></div></section>
+        <section className="observatory-intro" id="observatory"><span className="section-kicker">[ Observatory ]</span><h2 id="observatory-title" tabIndex={-1}>Follow the experiment.</h2><p>The market, the sensory input, and MetaTray’s paper decisions.</p><div className="observatory-actions"><button className="secondary-button" onClick={exportSession} disabled={!snapshot}><Download size={14}/> Data receipt</button><button className="secondary-button" onClick={exportVisualReceipt} disabled={!snapshot}><ImageDown size={14}/> Visual receipt</button><button className="secondary-button" onClick={() => void copyPredictionLink()} disabled={!result}><LinkIcon size={14}/> Copy result link</button></div></section>
         <div className={`mode-banner ${error ? 'error-banner' : ''}`} role="status"><div><Radio size={15}/><span>{error || (demo ? 'Synthetic market replay' : snapshot?.stale ? 'Chain feed is stale' : 'Following on-chain market events')}</span><small>{error ? snapshot?.feed?.phase === 'setup' ? 'Required variable names are listed in the live input stream.' : 'Last received values may be stale.' : demo ? 'Demo prices. No model predictions. No real funds.' : snapshot?.message}</small></div><Link href="/deployment">{demo ? 'Connect live services' : 'Service setup'}<ChevronRight size={15}/></Link></div>
         <section className="stats-grid" aria-label="Market and paper account statistics">
           <Stat label={`${snapshot?.symbol ?? 'METATRAY'} / ${quote}`} value={price ? price.toFixed(6) : '—'} detail={`${change >= 0 ? '+' : ''}${change.toFixed(2)}% in displayed history`} positive={change >= 0} icon={<CircleDot size={16}/>}/>
@@ -177,7 +206,7 @@ export default function Dashboard() {
           <Stat label="PAPER RETURN" value={`${pnl >= 0 ? '+' : ''}${money(pnl)}`} detail={`${snapshot ? (pnl / snapshot.paperConfig.initialQuote * 100).toFixed(2) : '0.00'}% after simulated costs`} positive={pnl >= 0} icon={<ArrowUpRight size={16}/>}/>
         </section>
         <section className="observatory-grid">
-          <article className="panel market-panel"><div className="panel-heading"><div><span className="panel-icon"><Activity size={15}/></span><h2>The market</h2></div><div className="range-control">{[75, 150, 300].map(r => <button key={r} onClick={() => setRange(r)} className={range === r ? 'selected' : ''}>{r === 300 ? 'ALL' : `${r} TX`}</button>)}</div></div>
+          <article className="panel market-panel"><div className="panel-heading"><div><span className="panel-icon"><Activity size={15}/></span><h2>The market</h2></div><div className="range-control" role="group" aria-label="Price chart event range">{[75, 150, 300].map(r => <button key={r} onClick={() => setRange(r)} aria-pressed={range === r} className={range === r ? 'selected' : ''}>{r === 300 ? 'ALL EVENTS' : `${r} TX`}</button>)}</div></div>
               <div className="market-price">{price ? price.toFixed(6) : '—'}<small>{quote}</small><span className={change >= 0 ? 'up' : 'down'}>{change >= 0 ? '+' : ''}{change.toFixed(2)}%</span></div>
               <PriceChart ticks={ticks.slice(-range)}/><div className="flow-labels"><span>Buy flow <b>{volume ? Math.round(buyVolume / volume * 100) : 0}%</b></span><span>Sell flow <b>{volume ? Math.round((1 - buyVolume / volume) * 100) : 0}%</b></span></div><div className="flow-bar"><span style={{ width: `${volume ? buyVolume / volume * 100 : 50}%` }}/></div>
             </article>
@@ -185,7 +214,7 @@ export default function Dashboard() {
         </section>
         <section className="lower-grid">
           <article className="panel trades-panel"><div className="panel-heading"><div><span className="panel-icon"><Radio size={15}/></span><h2>Market activity</h2><span className="count">{ticks.length}</span></div><button className="text-button" onClick={() => setPaused(p => !p)}>{paused ? <Play size={13}/> : <Pause size={13}/>} {paused ? 'Resume view' : 'Pause view'}</button></div>
-            <div className="table-scroll"><table><thead><tr><th>TIME</th><th>SIDE</th><th>VALUE / {quote}</th><th>PRICE</th><th>SOURCE</th></tr></thead><tbody>{ticks.slice(-8).reverse().map(t => <tr key={t.id} onClick={() => setSelected(t.id)}><td><button className="trade-inspect-button" type="button" aria-haspopup="dialog" aria-label={`Inspect ${t.side} at ${t.price}`} onClick={event => { event.stopPropagation(); setSelected(t.id); }}>{new Date(t.ts).toLocaleTimeString('en-GB')}</button></td><td><span className={`trade-side ${t.side}`}>{t.side === 'buy' ? <ArrowDownLeft size={12}/> : <ArrowUpRight size={12}/>} {t.side.toUpperCase()}</span></td><td>{number(t.quoteAmount)}</td><td>{t.price.toFixed(6)}</td><td className="muted">{demo ? 'DEMO' : short(t.txHash)}</td></tr>)}</tbody></table>{!ticks.length ? <p className="empty-copy">Real swaps appear here after the configured RPC or indexer receives events.</p> : null}</div>
+            <div className="table-scroll" role="region" aria-label="Recent market activity table" tabIndex={0}><table><thead><tr><th>TIME</th><th>SIDE</th><th>VALUE / {quote}</th><th>PRICE</th><th>SOURCE</th></tr></thead><tbody>{ticks.slice(-8).reverse().map(t => <tr key={t.id}><td><button className="trade-inspect-button" type="button" aria-haspopup="dialog" aria-label={`Inspect ${t.side} receipt for ${number(t.quoteAmount)} ${quote} at price ${t.price.toFixed(6)}, block ${t.blockNumber}, transaction ${short(t.txHash)}`} onClick={() => setSelected(t.id)}>{new Date(t.ts).toLocaleTimeString('en-GB')}</button></td><td><span className={`trade-side ${t.side}`}>{t.side === 'buy' ? <ArrowDownLeft size={12}/> : <ArrowUpRight size={12}/>} {t.side.toUpperCase()}</span></td><td>{number(t.quoteAmount)}</td><td>{t.price.toFixed(6)}</td><td className="muted">{demo ? 'DEMO' : short(t.txHash)}</td></tr>)}</tbody></table>{!ticks.length ? <p className="empty-copy">Real swaps appear here after the configured RPC or indexer receives events.</p> : null}</div>
           </article>
           <article className="panel account-panel"><div className="panel-heading"><div><span className="panel-icon"><Wallet size={15}/></span><h2>MetaTray’s paper account</h2></div><span className="small-tag">SIMULATION</span></div>
             <div className="account-rows"><div><span>Cash balance</span><strong>{money(snapshot?.paper.cash ?? 0)} <small>{quote}</small></strong></div><div><span>Token position</span><strong>{number(snapshot?.paper.units ?? 0)} <small>{snapshot?.symbol ?? 'TOKEN'}</small></strong></div><div><span>Realized P/L</span><strong>{money(snapshot?.paper.realizedPnl ?? 0)}</strong></div><div><span>Simulated fees</span><strong>{money(snapshot?.paper.totalFees ?? 0)}</strong></div></div>
@@ -195,8 +224,8 @@ export default function Dashboard() {
           </article>
         </section>
         <section className="panel ledger-panel"><div className="panel-heading"><div><span className="panel-icon"><BookOpen size={15}/></span><h2>Paper decisions</h2></div><span className="label">SIMULATED FILLS · NO ORDERS SENT</span></div><div className="ledger-items">{snapshot?.paper.fills.length ? snapshot.paper.fills.slice(-4).reverse().map(f => <div className="ledger-item" key={f.id}><span className={`trade-side ${f.side}`}>{f.side.toUpperCase()}</span><div><strong>{number(f.quantity)} {snapshot?.symbol ?? 'TOKEN'} at {f.price.toFixed(6)}</strong><small>{f.reason}</small></div><span>{new Date(f.ts).toLocaleTimeString('en-GB')}</span></div>) : <p className="empty-copy">No paper decisions. Observer mode holds cash; cortical mode requires a fresh model prediction.</p>}</div></section>
-        <div id="atlas"><CorticalAtlas epochs={snapshot?.epochs ?? []} currentId={predictionId ?? null} quote={quote} onSelect={id => { setSelectedPredictionId(id); setHeroView('cortex'); requestAnimationFrame(() => document.querySelector('.instrument-panel')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })); }}/></div>
-        {result ? <details className="panel prediction-receipt"><summary>Inspect the cortical prediction receipt</summary><p>Teal: positive model values. Amber: negative values. Fixed scale: −2 to +2 normalized model units. The trace shows mean absolute response across surface vertices.</p><p>Input cutoff: {new Date(result.inputEnd).toISOString()} · Published: {new Date(result.availableAt).toISOString()}</p><pre>{JSON.stringify(result.manifest, null, 2)}</pre></details> : null}
+        <div id="atlas"><CorticalAtlas epochs={snapshot?.epochs ?? []} currentId={predictionId ?? null} quote={quote} onSelect={id => { setSelectedPredictionId(id); setHeroView('cortex'); requestAnimationFrame(() => { document.querySelector('.instrument-panel')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' }); document.getElementById('tab-cortex')?.focus({ preventScroll: true }); }); }}/></div>
+        {result ? <details className="panel prediction-receipt"><summary>Inspect the cortical prediction receipt</summary><p>Cyan: positive model values. Coral: negative values. Fixed scale: −2 to +2 normalized model units. The trace shows mean absolute response across surface vertices.</p><p>Input cutoff: {new Date(result.inputEnd).toISOString()} · Published: {new Date(result.availableAt).toISOString()}</p><pre>{JSON.stringify(result.manifest, null, 2)}</pre></details> : null}
         <section className="faq-section"><div><span className="section-kicker">[ Questions ]</span><h2>A closer look<br/>at MetaTray.</h2><p>Understand what you’re watching.</p></div><div className="faq-items">{[
           ['Is this a real human brain?', 'MetaTray uses a model that predicts cortical fMRI responses to audiovisual stimuli. It is not a living brain, a human connectome, or a recording from an individual.'],
           ['What changes when someone trades?', 'Configured chain events change the observed market data. The worker turns a recorded window into a sensory stimulus, and a completed model result updates the cortical surface. Processing is asynchronous.'],

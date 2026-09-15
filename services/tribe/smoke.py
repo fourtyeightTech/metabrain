@@ -27,10 +27,11 @@ def main():
         (out / "render-manifest.json").write_text(json.dumps(rendered, indent=2)); print("Stimulus rendered; no inference was performed."); return
     from adapter import Adapter
     adapter = Adapter()
-    result, output_hash, manifest = adapter.infer(out)
+    result, output_hash, manifest, surface_payload = adapter.infer(out)
     (out / "smoke-result.json").write_text(json.dumps({"syntheticInput": True, "published": False,
         "outputHash": output_hash, "stimulus": rendered, "manifest": manifest, "result": result}, indent=2))
-    print(f"Actual TRIBE smoke output: {result['sampleCount']} samples, {result['vertexCount']} vertices. Not published to the live database.")
+    print(f"Actual TRIBE smoke output: {result['sampleCount']} samples, {result['vertexCount']} vertices, "
+          f"{len(surface_payload)} compressed surface bytes. Not published to the live database.")
 
 
 if __name__ == "__main__":

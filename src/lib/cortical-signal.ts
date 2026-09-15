@@ -1,11 +1,16 @@
 import type { Tick } from './types';
 
-const SIGNAL_RECENCY_MS = 90_000;
-const SEEN_SIGNAL_RETENTION_MS = SIGNAL_RECENCY_MS * 2;
+export const MARKET_SIGNAL_RECENCY_MS = 90_000;
+const MAX_FUTURE_CLOCK_SKEW_MS = 30_000;
+const SEEN_SIGNAL_RETENTION_MS = MARKET_SIGNAL_RECENCY_MS * 2;
 const MAX_SEEN_SIGNALS = 256;
 
 type SignalIdentity = Pick<Tick, 'id' | 'txHash' | 'ts'>;
 type SignalMagnitude = Pick<Tick, 'quoteAmount'>;
+
+export function isRecentMarketSignal(event: Pick<Tick, 'txHash' | 'ts'> | undefined, now = Date.now()): boolean {
+  return !!event?.txHash && Number.isFinite(event.ts) && event.ts <= now + MAX_FUTURE_CLOCK_SKEW_MS && now - event.ts < MARKET_SIGNAL_RECENCY_MS;
+}
 
 /** Maps relative trade size to a deliberately narrow visual range. */
 export function marketSignalStrength(event: SignalMagnitude, window: readonly SignalMagnitude[]): number {
@@ -34,7 +39,7 @@ export function takeUnseenRecentSignals<T extends SignalIdentity>(
 
   const unseen: T[] = [];
   for (const event of events) {
-    if (!event.txHash || now - event.ts >= SIGNAL_RECENCY_MS || seen.has(event.id)) continue;
+    if (!isRecentMarketSignal(event, now) || seen.has(event.id)) continue;
     seen.set(event.id, now);
     unseen.push(event);
   }

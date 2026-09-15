@@ -42,15 +42,17 @@ Vercel may prefill many names from `.env.example`. Remove unused blank rows. Add
 | `PONS_FACTORY_ADDRESS` | Verified factory that created this token, on this chain |
 | `BLOCK_EXPLORER_URL` | Optional public HTTPS explorer base URL, with no credentials, query or fragment |
 
+The four connection values named in the website setup state are `RPC_HTTP_URL`, `CHAIN_ID`, `TOKEN_ADDRESS` and `PONS_FACTORY_ADDRESS`. With the live/RPC mode and Pons protocol selected, they establish only the read-only market feed. They do **not** enable TRIBE, queue a model job or create a cortical heatmap. Real cortical output requires the separate indexed deployment in sections 2–6: Postgres, a persistent indexer and an authorized GPU worker.
+
 For a compatible V3 pool, select `MARKET_PROTOCOL=uniswap-v3` and set `V3_POOL_ADDRESS` instead of the Pons factory. In Pons V2 mode the observer reads the hook and pool manager from the factory and validates deployed bytecode. It follows curve events and the derived V4 pool through graduation. It never reuses another project's token. The adapter was audited against [Pons V2 source revision `cb5748a29e4d3a7af1c4e982baa9ed9194d25a8f`](https://github.com/ponsdotdev/ponsfamily/tree/cb5748a29e4d3a7af1c4e982baa9ed9194d25a8f); separately verify that the selected deployment uses that compatible contract generation.
 
 The browser polls every five seconds, with a short server cache and two confirmation blocks by default. Change `CONFIRMATION_BLOCKS` only with the chain's finality behavior in mind. `RPC_RECENT_BLOCKS` defaults to 60 (maximum 200), and `RPC_MAX_EVENTS` to 100 (maximum 200). This is a bounded recent view, not a complete history. Busy windows display a truncation notice. Curves use the execution ratio from event amounts; V3/V4 use post-swap spot prices. Quote values are not assumed to be USD.
 
 Check `/api/health` and `/api/snapshot`. A healthy quiet market returns an empty real-event list with `waiting` status. Missing settings return HTTP 503 with their names, never secret values. Wrong-chain, mismatched-contract, reorg-during-read and unavailable-provider failures return a disconnected state. Old confirmed blocks are stale. No live error falls back to synthetic events. Match a displayed event's hash, block, direction, raw amounts and decimals to a transaction receipt on the configured chain.
 
-The 3D surface renders without the GPU worker. Fresh real events trigger authored teal buy/amber sell input pulses, explicitly labelled as market inputs. Actual Meta model colors are a separate display path. Direct RPC mode does not run model jobs or persistent paper decisions; its observer account holds simulated cash. For the full experiment, continue with sections 2–4 and set `METATRAY_FEED=indexed` plus `DATABASE_READ_URL` on Vercel. The persistent worker still requires its full configuration.
+The 3D schematic renders without the GPU worker. Fresh real events trigger authored cyan buy/coral sell receipt particles outside the cortical surface, explicitly labelled as market inputs. They are not neural values. Actual model colors are a separate display path that replays the latest completed cortical epoch. Direct RPC mode does not run model jobs or persistent paper decisions; its observer account holds simulated cash. For the full experiment, continue with sections 2–6 and set `METATRAY_FEED=indexed` plus `DATABASE_READ_URL` on Vercel. The persistent worker still requires its full configuration.
 
-Completed indexed predictions populate the cortical atlas automatically. Each card uses the job's retained market input to show trade count, quote volume, price change and a descriptive market regime. Selecting a card loads that exact result through `/api/predictions/[id]`. The visual receipt button exports a 1200 × 630 PNG containing the current canvas and public provenance fields; the data receipt retains the complete JSON. A copied result link includes only the prediction UUID and resolves through the public read API.
+Completed indexed predictions populate the cortical atlas automatically. Each card uses the job's retained market input to show trade count, quote volume, price change and a descriptive market regime. Selecting a card loads that exact result through `/api/predictions/[id]`, its 20,484-vertex fsaverage5 mesh through `/api/mesh`, and its integrity-checked temporal frames through `/api/predictions/[id]/surface`. The browser replays genuine completed model rows on the upstream one-second grid. Any interpolation between those rows is visual only. The visual receipt button exports a 1200 × 630 PNG containing the current canvas and public provenance fields; the data receipt retains the complete JSON. A copied result link includes only the prediction UUID and resolves through the public read API.
 
 This configuration follows Vercel's ordinary [project configuration](https://vercel.com/docs/project-configuration/vercel-json) and [Next.js Functions](https://vercel.com/docs/functions/functions-api-reference) paths. Vercel Services mode is intentionally not used.
 
@@ -80,13 +82,13 @@ This starts its own temporary servers and uses a packaged test browser. On a hos
 
 Provision a private Postgres 16+ database. The indexer needs a **direct session connection** because it holds a session advisory lock. Do not use a transaction-pooled endpoint for that worker. The public website should use a small pooled connection through a separate read-only role. Preserve the provider's required TLS verification settings.
 
-On the operator's machine or persistent market host, copy `.env.example` to a private `.env` and set `DATABASE_URL`. Apply the initial migration:
+On the operator's machine or persistent market host, copy `.env.example` to a private `.env` and set `DATABASE_URL`. Apply all numbered migrations:
 
 ```bash
 npm run db:migrate
 ```
 
-The migration is idempotent. It creates tables only; it does not clear existing data. Future schema changes need new numbered migrations.
+The migrations are idempotent. They create tables only; they do not clear existing data. Migration `002_surface_frames.sql` adds the bounded temporal-surface table. Run the migration command against an existing deployment before starting the updated GPU worker or requesting the surface endpoint. Future schema changes need new numbered migrations.
 
 Example read-only role setup, run by a database administrator in an interactive `psql` session:
 
@@ -95,7 +97,7 @@ CREATE ROLE metatray_web LOGIN;
 \password metatray_web
 GRANT CONNECT ON DATABASE metatray TO metatray_web;
 GRANT USAGE ON SCHEMA public TO metatray_web;
-GRANT SELECT ON metatray_state, metatray_events, metatray_jobs, metatray_predictions, metatray_assets TO metatray_web;
+GRANT SELECT ON metatray_state, metatray_events, metatray_jobs, metatray_predictions, metatray_prediction_surfaces, metatray_assets TO metatray_web;
 ```
 
 Replace `metatray` with the actual database name if different. Set the password interactively; do not put it in a public script. The deployment provider can also create a read-only role. Only the worker/migration role needs writes. Supply the resulting private read connection to Vercel as `DATABASE_READ_URL`.
@@ -160,7 +162,7 @@ The worker fingerprints paper settings to protect experiment continuity. For a c
 
 ## 6. Prepare the GPU environment
 
-Establish permission for this intended model use first. The released TRIBE source/weights are CC BY-NC 4.0. The original integration code's MIT license does not supply commercial rights to those components.
+Establish permission for this intended model use first. The released TRIBE source/weights are CC BY-NC 4.0. Token promotion or another commercial use is plausibly outside those noncommercial terms; obtain separate permission and legal review before enabling it. The original integration code's MIT license does not supply commercial rights to those components.
 
 You need a Linux CUDA-capable host, a compatible NVIDIA driver/runtime, sufficient GPU memory for the checkpoint and modality extractors, and durable storage for models, feature caches and artifacts. This project does not claim a measured minimum VRAM requirement or a tested GPU SKU. Benchmark on your chosen host before committing to a low-latency deployment. Vercel is the web host in this design; the GPU service runs separately.
 
@@ -196,7 +198,7 @@ The model preparation command downloads only after the explicit enabled/rights c
 
 The Dockerfile constrains the direct Python dependencies and uses the upstream-required `neuralset==0.0.2` and `neuraltrain==0.0.2` through TRIBE. Do not substitute the current NeuroAI main branch: its extractor interfaces have changed. `bin/uvx` routes the upstream WhisperX invocation to version 3.3.4 in an isolated `uv` tool environment. ASR/alignment model downloads and transitive packages are not a fully locked deployment environment in this handoff. After the first successful smoke run, retain the caches, record tool/model file hashes, archive both Python environments' exact package lists and pin your built image digest. Test before upgrading any part of that stack.
 
-`smoke.py --render-only` creates an explicitly synthetic 100-second chart/narration test. Without `--render-only`, it calls the real model and stores its output privately. Neither form writes predictions into the live database. Inspect `stimulus.mp4`, `events.csv`, `prediction.npz` and `smoke-result.json`. Require finite `(time, 20484)` output, preserved upstream starts/durations and a matching `eventsHash` for the retained event table. Validate the transcript and check that silence or digit-heavy speech has not produced unintended language.
+`smoke.py --render-only` creates an explicitly synthetic 100-second chart/narration test. Without `--render-only`, it calls the real model and stores its output privately. Neither form writes predictions into the live database. Inspect `stimulus.mp4`, `events.csv`, `prediction.npz`, the compact temporal-surface artifact and `smoke-result.json`. Require finite `(time, 20484)` output, preserved upstream starts/durations and a matching `eventsHash` for the retained event table. Validate the transcript and check that silence or digit-heavy speech has not produced unintended language.
 
 Then launch:
 
@@ -204,7 +206,7 @@ Then launch:
 docker compose --profile gpu up -d tribe
 ```
 
-The GPU worker needs the writer `DATABASE_URL`. Set `INFERENCE_ENABLED=true` on the indexer and restart the indexer. Defaults are a 100-second input context and a 15-second refresh request. The website reports queue/running/failure counts and delayed results. If processing consistently exceeds the 45-second freshness budget, leave cortical paper trading inactive; use observer mode and report measured delays.
+The GPU worker needs the writer `DATABASE_URL`. Set `INFERENCE_ENABLED=true` on the indexer and restart the indexer. Defaults are a 100-second input context and a 15-second refresh request. Upstream features are represented at 2 Hz, cortical output is on a 1 Hz grid, and the model alignment includes an approximately five-second hemodynamic offset. None of those values is a claim of millisecond neuron simulation or instantaneous per-swap inference. The website reports queue/running/failure counts and delayed results. If processing consistently exceeds the 45-second freshness budget, leave cortical paper trading inactive; use observer mode and report measured delays.
 
 ## 7. Operations, retention and recovery
 
@@ -223,9 +225,10 @@ The GPU worker needs the writer `DATABASE_URL`. Set `INFERENCE_ENABLED=true` on 
 2. Find a completed job whose input contains that event and whose source block remains canonical.
 3. Match its public `stimulusHash` to the retained video, and its `outputHash` to `prediction.npz`.
 4. Verify the model/code revisions, output dimensions and fsaverage5 vertex order.
-5. Confirm the dashboard displays the returned values and public receipt, with accurate input age.
-6. Stop the GPU service and verify that old results become delayed and cannot produce new cortical decisions.
-7. Test reorg/cancellation and lease recovery on a controlled development chain/database before making robustness claims about production. Unit tests are not a substitute for the deployed chain's behavior.
-8. Record measured median/p95 processing delay, stale-result rate, GPU memory use and costs. Update `docs/VERIFICATION.md` with actual evidence.
+5. Fetch `/api/predictions/{id}/surface`; verify its frame/vertex metadata matches the completed prediction, its vertex count is 20,484 and its integrity hash matches the stored payload.
+6. Confirm the dashboard replays that completed epoch on the anatomical surface while receipt pulses remain a visibly separate market-input layer. Check the fixed ±2 normalized-model-unit legend and accurate input/publication ages.
+7. Stop the GPU service and verify that old results become delayed and cannot produce new cortical decisions.
+8. Test reorg/cancellation and lease recovery on a controlled development chain/database before making robustness claims about production. Unit tests are not a substitute for the deployed chain's behavior.
+9. Record measured median/p95 processing delay, stale-result rate, GPU memory use and costs. Update `docs/VERIFICATION.md` with actual evidence.
 
 For Vercel setup mechanics, consult the [official Next.js deployment guide](https://vercel.com/docs/frameworks/full-stack/nextjs). No service is deployed or billed merely by unpacking this archive.

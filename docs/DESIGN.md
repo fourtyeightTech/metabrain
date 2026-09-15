@@ -14,7 +14,7 @@ The flat ASCII wordmark `[tray]_` appears in the header and footer, paired with 
 | Layout | Bordered outer frame, inset dashed vertical rails, generous section spacing |
 | Actions | Off-white primary buttons with dark text; bracket-corner secondary hero action |
 | Product panels | Fine square outlines, restrained stacked-frame treatment, compact tab strip |
-| Signal colors | Muted green and amber reserved for market direction and model-value meaning |
+| Signal colors | Cyan and coral encode model sign and separate market-receipt direction; labels and position distinguish the layers |
 | Footer | Large outlined METATRAY wordmark, independent-project statement and useful navigation |
 
 ## Page structure
@@ -33,7 +33,7 @@ The phone layout stacks the hero, removes the duplicate receipt callout and wrap
 ## Interaction contracts
 
 - Hero tabs support click, keyboard focus and left/right arrow navigation. Only the selected view is mounted.
-- The 3D view uses Three.js and OrbitControls. Drag rotates; the reset control restores the camera. Automatic camera motion has an explicit pause/resume control and respects the system's reduced-motion preference. Recent confirmed event receipts map deterministically to bounded points on the illustrative cortical field; buy/sell events create distinct teal/amber expanding signal waves, and relative quote value changes their size only within a narrow unit-independent range. A bounded seen-event history prevents an old receipt from replaying as new.
+- The 3D view uses Three.js and OrbitControls. Drag or arrow keys rotate; plus/minus zooms; the reset control restores the camera. Automatic camera motion has an explicit pause/resume control and respects the system's reduced-motion preference. Recent confirmed event receipts map deterministically to exterior points around the cortical surface; buys/sells create distinct cyan/coral expanding particles, and relative quote value changes their size only within a narrow unit-independent range. A bounded seen-event history prevents an old receipt from replaying as new.
 - If an actual model surface and a current transaction are visible together, a persistent label distinguishes the model-colored fsaverage5 surface from the separately overlaid market-input pulse.
 - Camera motion never generates or modifies model values. The default geometry is labeled illustrative. No model result means no response trace.
 - The stimulus tab explains the input currently represented by the market context. Exact generated inputs belong to their completed job receipts.

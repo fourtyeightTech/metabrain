@@ -48,3 +48,24 @@ test('historical catch-up never backdates paper trades', async () => {
   assert.equal((await getState<PaperAccount>(db, 'paper'))!.fills.length, 0);
   await pg.close();
 });
+test('a pre-window seed cannot queue a model job or alter in-window narration', async () => {
+  const pg = new PGlite(); const db = pg as unknown as Sql;
+  await pg.exec(await readFile(new URL('../db/001_initial.sql', import.meta.url), 'utf8'));
+  const cfg = { ...DEFAULT_PAPER_CONFIG, policy: 'observer' as const };
+  await applyBlock(db, { number: 1, hash: 'seed', parentHash: 'zero', ts: at,
+    ticks: [tick(.1, 0, 1)] }, cfg, at);
+  await applyBlock(db, { number: 2, hash: 'fresh-a', parentHash: 'seed', ts: at + 120000,
+    ticks: [tick(1, 120, 2)] }, cfg, at + 120000);
+  await applyBlock(db, { number: 3, hash: 'fresh-b', parentHash: 'fresh-a', ts: at + 130000,
+    ticks: [tick(1.1, 130, 3)] }, cfg, at + 130000);
+  await queueInference(db, { now: at + 130001, contextSeconds: 100, refreshSeconds: 15, quote: 'TEST' });
+  const job = (await db.query<{ input: { baselineTickId: string; windowEventCount: number; text: string } }>('SELECT input FROM metatray_jobs')).rows[0];
+  assert.equal(job.input.baselineTickId, tick(.1, 0, 1).id); assert.equal(job.input.windowEventCount, 2);
+  assert.match(job.input.text, /risen 10\.00 percent/); assert.doesNotMatch(job.input.text, /1000\.00 percent/);
+
+  await db.query('DELETE FROM metatray_jobs'); await db.query('UPDATE metatray_state SET value=\'0\'::jsonb WHERE key=\'lastJobAt\'');
+  await applyBlock(db, { number: 4, hash: 'quiet', parentHash: 'fresh-b', ts: at + 300000, ticks: [] }, cfg, at + 300000);
+  await queueInference(db, { now: at + 300001, contextSeconds: 100, refreshSeconds: 15, quote: 'TEST' });
+  assert.equal((await db.query('SELECT * FROM metatray_jobs')).rows.length, 0);
+  await pg.close();
+});

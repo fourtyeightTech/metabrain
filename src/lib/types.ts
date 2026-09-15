@@ -26,6 +26,12 @@ export interface PredictionSummary {
   outputHash: string; meanAbsoluteResponse: number; responseChange: number | null;
   sampleCount: number; vertexCount: number; latencyMs: number;
   alignment: 'upstream-segment-timestamps'; runMode: 'rolling-window-experimental';
+  surfaceFrames?: SurfaceFrameSummary;
+}
+export interface SurfaceFrameSummary {
+  version: 1; format: 'metatray-surface-int16-le'; compression: 'gzip';
+  quantization: 'signed-int16-fixed-symmetric'; timing: 'upstream-segment-start-duration-seconds';
+  frameCount: number; vertexCount: number; colorLimit: number; byteLength: number; sha256: string;
 }
 export interface PredictionResult extends PredictionSummary {
   values: number[]; times: number[]; responseTrace: number[];

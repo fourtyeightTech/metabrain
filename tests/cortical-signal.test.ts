@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { marketSignalPosition, marketSignalStrength, takeUnseenRecentSignals } from '../src/lib/cortical-signal';
+import { isRecentMarketSignal, marketSignalPosition, marketSignalStrength, takeUnseenRecentSignals } from '../src/lib/cortical-signal';
 import type { Tick } from '../src/lib/types';
 
 test('public event receipts map deterministically to bounded, distinct 3D signal points', () => {
@@ -33,6 +33,14 @@ test('events omitted from a visual burst are still marked seen', () => {
   const events = Array.from({ length: 8 }, (_, index) => signal(String(index + 1), now - 1_000));
   assert.deepEqual(takeUnseenRecentSignals(events, seen, now, 2).map(event => event.id), ['7', '8']);
   assert.deepEqual(takeUnseenRecentSignals(events, seen, now + 1_000, 2), []);
+});
+
+test('historical or implausibly future receipts cannot keep the live visual state active', () => {
+  const now = 3_000_000; const current = signal('1', now - 1_000);
+  assert.equal(isRecentMarketSignal(current, now), true);
+  assert.equal(isRecentMarketSignal({ ...current, ts: now - 90_000 }, now), false);
+  assert.equal(isRecentMarketSignal({ ...current, ts: now + 30_001 }, now), false);
+  assert.equal(isRecentMarketSignal(undefined, now), false);
 });
 
 test('market signal strength is unit-agnostic, ordered and conservatively bounded', () => {

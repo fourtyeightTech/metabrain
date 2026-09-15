@@ -6,7 +6,9 @@ The biological object behind MetaTray is a **learned encoding model**. A recorde
 
 The [TRIBE v2 paper](https://arxiv.org/abs/2605.04326) describes a multimodal neuroscience model evaluated using more than 1,000 hours of fMRI across 720 subjects. Those aggregate study counts should not be described as 720 individual brains running inside MetaTray. The released checkpoint configuration contains 25 subject heads, and its public inference wrapper averages subject-specific components. [Official inference API](https://github.com/facebookresearch/tribev2/blob/af58661791a351a448a489042a28f6c37e1c14b7/tribev2/demo_utils.py)
 
-The [released configuration](https://huggingface.co/facebook/tribev2/blob/main/config.yaml) uses language, audio and video features; the named feature encoders are Llama 3.2 3B, w2v-BERT 2.0 and V-JEPA 2. The transformer is noncausal. Its surface target is fsaverage5, with approximately 20,000 cortical vertices. A surface vertex is not one neuron.
+The [released configuration](https://huggingface.co/facebook/tribev2/blob/main/config.yaml) uses language, audio and video features; the named feature encoders are Llama 3.2 3B, w2v-BERT 2.0 and V-JEPA 2. The transformer is noncausal. Its surface target is fsaverage5: 10,242 vertices per hemisphere, or 20,484 vertices after MetaTray concatenates left then right. A surface vertex is not one neuron.
+
+The [pinned upstream revision](https://github.com/facebookresearch/tribev2/tree/af58661791a351a448a489042a28f6c37e1c14b7) operates on slow fMRI-model timescales. Feature input is represented at 2 Hz and the predicted cortical grid is 1 Hz. The published alignment includes an approximately five-second offset for hemodynamic lag, and the upstream inference protocol uses 100-second windows. None of those quantities means that MetaTray observes millisecond action potentials or computes an instantaneous causal response to one transaction.
 
 This integration uses original code around the published API. It does not retrain the model or include experimental participants' recordings, identifying metadata or private research files.
 
@@ -39,7 +41,7 @@ The renderer never calls an LLM to embellish the story. It does not describe wha
 
 The worker calls the official `TribeModel.from_pretrained`, `get_events_dataframe(video_path=...)` and `predict(events=...)` interfaces. The upstream preprocessing extracts audio, produces word timings through WhisperX, and prepares the modality features. The adapter pins the source revision and points feature extractors to immutable downloaded snapshots.
 
-The array must have finite values and the expected surface width. The adapter rejects incompatible geometry, missing segment metadata and duplicate output starts. Raw predictions and upstream segment starts/durations are retained in `prediction.npz`. No synthetic value is substituted on failure.
+The array must have finite values and the expected 20,484-column surface width. The adapter rejects incompatible geometry, missing segment metadata and duplicate output starts. Raw predictions and upstream segment starts/durations are retained in `prediction.npz`. Every genuine time-ordered row is also encoded into a compact, display-only temporal surface payload for the browser. No synthetic value is substituted on failure.
 
 ## Five clocks that must not be collapsed
 
@@ -51,7 +53,7 @@ The array must have finite values and the expected surface width. The adapter re
 | Upstream response time | `segment.start` associated with a prediction row by the released pipeline |
 | Publication time | Database publication timestamp after rendering, preprocessing and inference |
 
-TRIBE's [README](https://github.com/facebookresearch/tribev2) documents a five-second offset intended to compensate for hemodynamic lag. That scientific alignment is separate from processing delay. MetaTray preserves upstream segment metadata and applies no additional five-second shift. Output time is not labeled as the instantaneous neuronal response to a blockchain transaction.
+TRIBE's [pinned README](https://github.com/facebookresearch/tribev2/blob/af58661791a351a448a489042a28f6c37e1c14b7/README.md) documents the approximately five-second offset intended to compensate for hemodynamic lag. That scientific alignment is separate from rendering, feature extraction, inference, database publication and browser polling delay. MetaTray preserves upstream segment metadata and applies no additional five-second shift. Output time is not labeled as the instantaneous neuronal response to a blockchain transaction.
 
 The supplied model uses context on both sides within its inference window. MetaTray's rolling-window use is therefore labeled **experimental**. All market observations in a job precede its cutoff, but earlier predicted rows can still depend on later parts of that same authored replay. This package does not retrospectively apply those rows to paper decisions during the replayed interval.
 
@@ -61,9 +63,18 @@ Only a result already published and still fresh can influence a new cortical pap
 
 The normal demo shows an explicitly labeled decorative cortex. Its geometry is authored, and it contains no neural predictions.
 
-Once actual inference succeeds, the service supplies fsaverage5 inflated surfaces from Nilearn. Left and right hemispheres are concatenated without reordering their vertices. The camera rotation changes coordinates, not the correspondence between an output column and a vertex.
+Once actual inference succeeds, the service supplies fsaverage5 inflated surfaces from Nilearn. Left and right hemispheres are concatenated without reordering their 20,484 vertices. The camera rotation changes coordinates, not the correspondence between an output column and a vertex.
 
-Teal indicates positive normalized model values and amber negative values. The color scale is fixed at ±2 model units; values outside it saturate visually while raw values are preserved. This is not percent BOLD, firing rate, number of active neurons or statistical significance. Negative values do not mean fear or selling.
+Cyan indicates positive normalized model values and coral negative values. The color scale is fixed at ±2 normalized model units across frames and epochs; values outside it saturate visually while the private raw floating-point values are preserved. The public browser payload is quantized only for display. This is not percent BOLD, firing rate, number of active neurons or statistical significance. Negative values do not mean fear or selling.
+
+The viewer keeps the two visual layers separate:
+
+| Visual layer | What moves | What may be inferred |
+| --- | --- | --- |
+| Market input | A receipt-triggered pulse outside the cortex when a newly observed confirmed trade arrives | A real decoded market event arrived; location, size and buy/sell color are authored mappings |
+| Cortical output | Vertex colors replay the genuine rows from the latest completed TRIBE epoch on their upstream one-second grid | The released model produced those values for the complete authored audiovisual window |
+
+The cortical animation is a replay of a completed epoch, not a model that reruns inside the browser and not a direct animation of each incoming swap. Linear interpolation between neighboring genuine rows is visual smoothing only; it is never written back as a model sample, used for scientific statistics or used for the paper policy. With reduced motion enabled, the viewer should step to a real frame instead of inventing in-between motion.
 
 The response trace is the mean absolute predicted value across surface vertices for each retained time point. The sizing statistic is the mean absolute difference between the last two time-ordered prediction rows. Both are simple descriptive statistics, not calibrated behavioral scores. The dashboard does not label brain regions as reward, pain or intention.
 
@@ -101,11 +112,12 @@ Avoid claims that MetaTray is a living human brain, feels losses, understands it
 
 ## Source and permission record
 
-- [Meta's official TRIBE v2 repository](https://github.com/facebookresearch/tribev2)
+- [Meta's pinned TRIBE v2 source revision](https://github.com/facebookresearch/tribev2/tree/af58661791a351a448a489042a28f6c37e1c14b7)
 - [Paper: A foundation model of vision, audition, and language for in-silico neuroscience](https://arxiv.org/abs/2605.04326)
 - [Official checkpoint and model card](https://huggingface.co/facebook/tribev2)
 - [Released configuration](https://huggingface.co/facebook/tribev2/blob/main/config.yaml)
-- [Source license](https://github.com/facebookresearch/tribev2/blob/main/LICENSE)
+- [Source license at the audited revision](https://github.com/facebookresearch/tribev2/blob/af58661791a351a448a489042a28f6c37e1c14b7/LICENSE)
+- [Pons V2 source revision used for protocol review](https://github.com/ponsdotdev/ponsfamily/tree/cb5748a29e4d3a7af1c4e982baa9ed9194d25a8f)
 - [Nilearn surface dataset interface](https://nilearn.github.io/stable/modules/generated/nilearn.datasets.fetch_surf_fsaverage.html)
 
-The released code and checkpoint are noncommercial. A free public website is not automatically sufficient to establish that a token-promotional model use is permitted. No rights are granted by a setting or a statement in this repository. Keep actual permissions and any account identifiers outside public source.
+The released code and checkpoint use CC BY-NC 4.0. A free-to-view website is not automatically a noncommercial use: applying the model to promote a token or another commercial project is plausibly not permitted by that license. Do not enable the model for that purpose without separate permission and legal review covering the intended deployment. No rights are granted by an environment setting or a statement in this repository. Keep actual permissions and any account identifiers outside public source.

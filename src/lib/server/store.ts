@@ -57,14 +57,18 @@ export async function queueInference(db: Sql, options: { now: number; contextSec
   const rows = (await db.query<{ data: Tick }>(
     'SELECT data FROM metatray_events WHERE ts<=$1 AND ts>=$2 ORDER BY block_number,(data->>\'logIndex\')::integer LIMIT 5001', [end, start])).rows;
   if (rows.length > 5000) throw new Error('Stimulus event limit exceeded; reduce context or aggregate explicitly');
+  // A price seed makes the first chart point meaningful, but cannot create an
+  // inference job by itself. Every Experience must contain a real in-window event.
+  if (!rows.length) return;
   const seed = (await db.query<{ data: Tick }>('SELECT data FROM metatray_events WHERE ts<$1 ORDER BY ts DESC LIMIT 1', [start])).rows[0]?.data;
-  const ticks = [ ...(seed ? [seed] : []), ...rows.map(r => r.data) ];
-  if (!ticks.length) return;
+  const windowTicks = rows.map(row => row.data);
+  const ticks = [ ...(seed ? [seed] : []), ...windowTicks ];
   const paper = await getState<PaperAccount>(db, 'paper');
   if (!paper) return;
   const input = { schemaVersion: 1, rendererVersion: 'metatray-market-screen-v1', start, end,
     sourceBlock: cursor.number, sourceBlockHash: cursor.hash, quoteSymbol: options.quote,
-    ticks, paper, text: describeMarket(ticks, paper, options.quote),
+    ticks, paper, text: describeMarket(windowTicks, paper, options.quote),
+    baselineTickId: seed?.id ?? null, windowEventCount: windowTicks.length,
     portfolioTiming: 'cutoff snapshot, narrated in a constructed replay; media time is not live wall time',
     temporalMode: 'rolling-window-experimental' };
   const serialized = JSON.stringify(input);

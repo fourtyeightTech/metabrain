@@ -57,6 +57,8 @@ export async function discoverMarket(client: PublicClient, cfg: DiscoveryConfig)
       functionName: 'getLaunchedToken', args: [cfg.TOKEN_ADDRESS] });
     if (!launch.exists || launch.token.toLowerCase() !== cfg.TOKEN_ADDRESS.toLowerCase()) throw new Error('Token is not a launch in this Pons V2 factory');
     quote = launch.pairToken;
+    if (quote.toLowerCase() === cfg.TOKEN_ADDRESS.toLowerCase()) throw new Error('Pons launch cannot pair the token with itself');
+    await assertContract(client, launch.curve);
     const currency0 = cfg.TOKEN_ADDRESS.toLowerCase() < quote.toLowerCase() ? cfg.TOKEN_ADDRESS : quote;
     const currency1 = currency0 === quote ? cfg.TOKEN_ADDRESS : quote;
     const poolId = keccak256(encodeAbiParameters(

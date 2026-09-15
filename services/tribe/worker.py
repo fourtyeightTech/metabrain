@@ -43,7 +43,7 @@ def heartbeat(job, finished):
             continue
 
 
-def publish(db, job, result):
+def publish(db, job, result, surface_payload):
     with db.transaction():
         # Lock the job first so reorg cancellation and publication serialize.
         current = db.execute("SELECT status,lease_id FROM metatray_jobs WHERE id=%s FOR UPDATE", (job["id"],)).fetchone()
@@ -56,10 +56,17 @@ def publish(db, job, result):
         result["availableAt"] = int(time.time() * 1000)
         public_result = result
         summary_keys = ["id", "source", "inputStart", "inputEnd", "availableAt", "modelRevision", "stimulusHash", "outputHash",
-                        "meanAbsoluteResponse", "responseChange", "sampleCount", "vertexCount", "latencyMs", "alignment", "runMode"]
+                        "meanAbsoluteResponse", "responseChange", "sampleCount", "vertexCount", "latencyMs", "alignment", "runMode",
+                        "surfaceFrames"]
         summary = {key: public_result[key] for key in summary_keys}
         db.execute("INSERT INTO metatray_predictions(id,input_end,available_at,summary,result) VALUES(%s,%s,%s,%s,%s)",
                    (job["id"], job["input_end"], public_result["availableAt"], Jsonb(summary), Jsonb(public_result)))
+        surface = public_result["surfaceFrames"]
+        db.execute("""INSERT INTO metatray_prediction_surfaces
+                   (prediction_id,format,version,compression,frame_count,vertex_count,color_limit,sha256,byte_length,payload)
+                   VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                   (job["id"], surface["format"], surface["version"], surface["compression"], surface["frameCount"],
+                    surface["vertexCount"], surface["colorLimit"], surface["sha256"], surface["byteLength"], surface_payload))
         db.execute("UPDATE metatray_jobs SET status='complete',lease_id=NULL WHERE id=%s", (job["id"],))
         return True
 
@@ -67,6 +74,9 @@ def publish(db, job, result):
 def main():
     for event in [signal.SIGTERM, signal.SIGINT]:
         signal.signal(event, lambda *_: STOP.set())
+    with connection() as db:
+        if not db.execute("SELECT version FROM metatray_migrations WHERE version='002'").fetchone():
+            raise RuntimeError("Database migration 002 is required before starting the GPU worker")
     adapter = Adapter()
     with connection() as db:
         db.execute("INSERT INTO metatray_assets(key,data) VALUES('fsaverage5',%s) ON CONFLICT(key) DO UPDATE SET data=EXCLUDED.data", (Jsonb(adapter.mesh),))
@@ -82,7 +92,7 @@ def main():
         started = time.monotonic()
         try:
             stimulus = render(job["input"], out)
-            values, output_hash, model_manifest = adapter.infer(out)
+            values, output_hash, model_manifest, surface_payload = adapter.infer(out)
             result = {**values, "id": str(job["id"]), "source": "tribe-v2", "inputStart": job["input"]["start"],
                       "inputEnd": job["input_end"], "modelRevision": os.environ["TRIBE_WEIGHTS_REVISION"],
                       "stimulusHash": stimulus["videoHash"], "outputHash": output_hash,
@@ -90,7 +100,7 @@ def main():
                       "runMode": "rolling-window-experimental", "manifest": {**model_manifest, "stimulus": stimulus,
                       "sourceBlock": job["source_block"], "sourceBlockHash": job["input"]["sourceBlockHash"], "inputHash": job["input_hash"]}}
             with connection() as db:
-                accepted = publish(db, job, result)
+                accepted = publish(db, job, result, surface_payload)
             (out / "manifest.json").write_text(json.dumps({**result, "published": accepted}, indent=2))
             print(json.dumps({"job": str(job["id"]), "published": accepted}), flush=True)
         except Exception as exc:

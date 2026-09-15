@@ -57,10 +57,6 @@ try {
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
   await page.getByRole('button', { name: 'Pause view' }).click();
   await page.getByRole('button', { name: 'Resume view' }).waitFor();
-  await page.locator('tbody tr').first().click();
-  await page.getByRole('dialog').waitFor();
-  await page.keyboard.press('Escape');
-  await page.getByRole('dialog').waitFor({ state: 'hidden' });
   await page.getByRole('combobox').selectOption('cortical');
   await page.getByText('No paper decisions. Observer mode holds cash; cortical mode requires a fresh model prediction.').waitFor();
   assert.equal(await page.getByText('NO PREDICTION', { exact: true }).count(), 1);
@@ -126,6 +122,9 @@ try {
   await page.goto('http://127.0.0.1:3101', { waitUntil: 'networkidle' });
   await page.getByText('Connect your real token', { exact: true }).waitFor();
   await page.locator('.env-chips').getByText('RPC_HTTP_URL', { exact: true }).waitFor();
+  assert.equal(await page.locator('.feed-console').getAttribute('data-state'), 'setup');
+  assert.equal(await page.locator('.pipeline-stages').evaluate(element => element.tagName), 'OL');
+  assert.equal(await page.locator('.pipeline-stages > li').count(), 4);
   await page.locator('.cortex-canvas canvas').waitFor();
   assert.equal(await page.locator('[data-visual-mode="schematic"]').count(), 1);
   for (const repo of ['https://github.com/fourtyeightTech/metabrain', 'https://github.com/facebookresearch/tribev2']) {
@@ -136,10 +135,23 @@ try {
   // Browser contract fixtures only. Not real chain observations or Meta predictions.
   let eventNumber = 1; let fail = false; let model = false;
   const predictionId = '11111111-1111-1111-1111-111111111111';
+  const surfaceFrames = { version: 1, format: 'metatray-surface-int16-le', compression: 'gzip',
+    quantization: 'signed-int16-fixed-symmetric', timing: 'upstream-segment-start-duration-seconds',
+    frameCount: 2, vertexCount: 4, colorLimit: 2, byteLength: 64, sha256: '1'.repeat(64) };
+  const surfaceFixture = () => {
+    const vertexCount = 4; const frameCount = 2; const bytes = Buffer.alloc(32 + frameCount * 8 + vertexCount * frameCount * 2);
+    bytes.write('MTRYSF01', 0, 'ascii'); bytes.writeUInt16LE(1, 8); bytes.writeUInt16LE(1, 10);
+    bytes.writeUInt32LE(32, 12); bytes.writeUInt32LE(vertexCount, 16); bytes.writeUInt32LE(frameCount, 20); bytes.writeFloatLE(2, 24);
+    let offset = 32;
+    for (const value of [0, 2]) { bytes.writeFloatLE(value, offset); offset += 4; }
+    for (const value of [1, 1]) { bytes.writeFloatLE(value, offset); offset += 4; }
+    for (const value of [-32767, -12000, 12000, 32767, 32767, 12000, -12000, -32767]) { bytes.writeInt16LE(value, offset); offset += 2; }
+    return bytes;
+  };
   const summary = () => ({ id: predictionId, source: 'tribe-v2', inputStart: Date.now() - 100000,
     inputEnd: Date.now() - 10000, availableAt: Date.now() - 1000, modelRevision: 'fixture-only', stimulusHash: 'fixture-input',
     outputHash: 'fixture-output', meanAbsoluteResponse: 0.2, responseChange: 0.1, sampleCount: 2, vertexCount: 4, latencyMs: 1000,
-    alignment: 'upstream-segment-timestamps', runMode: 'rolling-window-experimental' });
+    alignment: 'upstream-segment-timestamps', runMode: 'rolling-window-experimental', surfaceFrames });
   await page.route('**/api/snapshot?*', route => {
     const now = Date.now(); const txHash = '0x' + eventNumber.toString(16).padStart(64, '0');
     const tick = { id: `1:${txHash}:0`, ts: now, price: 1.2, quoteAmount: 12, tokenAmount: 10,
@@ -154,14 +166,17 @@ try {
         pollMs: 1000, missing: [], invalid: [], explorer: 'https://explorer.invalid' } } });
   });
   await page.route('**/api/predictions/' + predictionId, route => route.fulfill({ json: { ...summary(),
-    values: [0.2, -0.2, 0.1, -0.1], times: [0, 1], responseTrace: [0.1, 0.2], segmentOffsets: [0], colorLimit: 1, manifest: { fixture: true } } }));
+    values: [0.2, -0.2, 0.1, -0.1], times: [0, 2], responseTrace: [0.1, 0.2], segmentOffsets: [0, 2], colorLimit: 2, manifest: { fixture: true } } }));
+  await page.route('**/api/predictions/' + predictionId + '/surface', route => route.fulfill({ status: 200,
+    contentType: 'application/vnd.metatray.surface-frames; version=1', body: surfaceFixture() }));
   await page.route('**/api/mesh', route => route.fulfill({ json: {
     vertices: [-25, -25, 0, 25, -25, 0, 0, 25, 0, 0, 0, 25], faces: [0, 1, 2, 0, 1, 3, 0, 2, 3, 1, 2, 3],
     hemisphereBoundary: 2, mesh: 'fsaverage5' } }));
   await page.getByRole('button', { name: 'Refresh live feed', exact: true }).click();
   await page.locator('[data-visual-mode="market-input"]').waitFor();
   await page.getByText('LIVE ON-CHAIN', { exact: true }).waitFor();
-  await page.getByText('TX SIGNAL // BUY', { exact: true }).waitFor();
+  assert.equal(await page.locator('.feed-console').getAttribute('data-state'), 'live');
+  await page.getByText('MARKET RECEIPT // BUY', { exact: true }).waitFor();
   await page.getByText('BLOCK 100', { exact: true }).waitFor();
   await page.locator('.incoming-row').waitFor();
   const canvas = await page.locator('.cortex-canvas canvas').elementHandle();
@@ -169,7 +184,9 @@ try {
   eventNumber = 2;
   await page.waitForFunction(previous => document.querySelector('.cortex-stage')?.getAttribute('data-input-event') !== previous, firstInput);
   assert.equal(await canvas.evaluate(el => el.isConnected), true, 'Market updates must not recreate the WebGL canvas');
-  await page.locator('.incoming-row button').click();
+  const incomingReceipt = page.getByRole('button', { name: /^Inspect (buy|sell) event for / });
+  assert.equal(await incomingReceipt.getAttribute('type'), 'button');
+  await incomingReceipt.click();
   await page.getByRole('dialog').waitFor();
   await page.keyboard.press('Tab');
   assert.equal(await page.getByRole('link', { name: 'Verify transaction on explorer' }).evaluate(el => el === document.activeElement), true);
@@ -186,7 +203,14 @@ try {
   await page.locator('[data-visual-mode="schematic"]').waitFor();
   fail = false; model = true;
   await page.locator('[data-visual-mode="model-output"]').waitFor();
-  await page.getByText('MODEL OUTPUT', { exact: true }).waitFor();
+  await page.getByText('MODEL REPLAY', { exact: true }).waitFor();
+  await page.getByText('PUBLISHED MODEL REPLAY', { exact: true }).waitFor();
+  await page.getByText(/FRAME 1(?:→2)?\/2 · t=/).waitFor();
+  await page.getByRole('button', { name: 'Replay published cortical frames' }).waitFor();
+  assert.equal(await page.locator('.cortex-data-legend').getAttribute('aria-label'), 'Legend: cortical surface colors range from negative two through zero to positive two normalized model units. Cyan and coral exterior particles are separate market inputs.');
+  await page.getByRole('button', { name: 'Replay published cortical frames' }).click();
+  await page.locator('[data-model-playback="playing"]').waitFor();
+  await page.screenshot({ path: new URL('model-fixture.png', out).pathname });
   await page.getByText('1 VALIDATED EPOCHS', { exact: true }).waitFor();
   await page.getByRole('button', { name: /EPOCH 001/ }).click();
   const corticalReceipt = page.waitForEvent('download');
@@ -203,7 +227,7 @@ try {
   assert.deepEqual(errors, []);
   const report = { status: 'passed', viewport: ['1440x1100', '390x844', '320x1000', '768x1000', '1024x1000'],
     checks: ['production render', '3D schematic', 'hero viewer tabs and arrow keys', 'camera rotation and reduced motion', 'FAQ expansion', 'paper policy controls', 'pause/reset', 'native transaction-row keyboard activation', 'event modal and Escape',
-      'chart range', 'data and visual receipt downloads', 'cortical epoch atlas', 'Experiment 001 Open view route', 'informational routes, titles and navigation', 'mobile overflow', 'API mode boundaries', 'live setup instructions', 'real repository links', 'fixture event updates without canvas remount', 'pause and outage status', 'fixture model surface', 'WebGL fallback', 'event link keyboard access'],
+      'chart range', 'data and visual receipt downloads', 'cortical epoch atlas', 'Experiment 001 Open view route', 'informational routes, titles and navigation', 'mobile overflow', 'API mode boundaries', 'live setup instructions', 'real repository links', 'fixture event updates without canvas remount', 'pause and outage status', 'fixture temporal surface replay and fixed scale legend', 'WebGL fallback', 'event link keyboard access'],
     realChainTested: false, realTribeTested: false };
   await writeFile(new URL('report.json', out), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 2));

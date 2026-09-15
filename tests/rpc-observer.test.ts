@@ -83,6 +83,24 @@ test('Pons V2 discovers its hook/manager and rejects a configured mismatch', asy
   assert.equal(m.manager, manager); assert.equal(m.curve, pool); assert.match(m.poolId!, /^0x[0-9a-f]{64}$/);
   await assert.rejects(discoverMarket(client, { ...pons, PONS_HOOK_ADDRESS: quote }), /configuration mismatch/);
 });
+test('Pons V2 rejects an undeployed curve and a launch paired with its own token', async () => {
+  const hook = '0x4444444444444444444444444444444444444444' as Address;
+  const manager = '0x5555555555555555555555555555555555555555' as Address;
+  const curveAddress = '0x6666666666666666666666666666666666666666' as Address;
+  const pons = { ...cfg, MARKET_PROTOCOL: 'pons-v2' as const, PONS_FACTORY_ADDRESS: pool };
+  const ponsClient = (pairToken: Address, curve: Address = curveAddress, curveCode = '0x01') => fixture([], {
+    getCode: async ({ address }: { address: Address }) => address === curve ? curveCode : '0x01',
+    readContract: async ({ functionName }: { functionName: string }) => {
+      if (functionName === 'decimals') return 18;
+      if (functionName === 'memeHook') return hook;
+      if (functionName === 'poolManager') return manager;
+      if (functionName === 'getLaunchedToken') return { exists: true, token, pairToken, curve, poolFee: 3000, tickSpacing: 60 };
+      throw new Error('Unexpected contract call');
+    }
+  }).client;
+  await assert.rejects(discoverMarket(ponsClient(token), pons), /pair the token with itself/);
+  await assert.rejects(discoverMarket(ponsClient(quote, curveAddress, '0x'), pons), new RegExp(`No contract at configured ${curveAddress}`));
+});
 test('missing or invalid live config exposes names only and never falls back to demo', async () => {
   const keys = ['METATRAY_FEED', 'DATABASE_URL', 'DATABASE_READ_URL', 'RPC_HTTP_URL', 'CHAIN_ID', 'TOKEN_ADDRESS', 'MARKET_PROTOCOL', 'V3_POOL_ADDRESS', 'PONS_FACTORY_ADDRESS', 'PONS_HOOK_ADDRESS', 'V4_POOL_MANAGER_ADDRESS', 'BLOCK_EXPLORER_URL'];
   const prior = Object.fromEntries(keys.map(k => [k, process.env[k]]));
